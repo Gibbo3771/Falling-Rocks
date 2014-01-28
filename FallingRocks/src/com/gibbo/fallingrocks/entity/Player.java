@@ -16,81 +16,108 @@
 
 package com.gibbo.fallingrocks.entity;
 
+import net.dermetfan.utils.libgdx.graphics.AnimatedBox2DSprite;
+import net.dermetfan.utils.libgdx.graphics.AnimatedSprite;
+
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input.Keys;
-import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
-import com.gibbo.fallingrocks.engine.WorldRenderer;
+import com.badlogic.gdx.physics.box2d.BodyDef.BodyType;
+import com.badlogic.gdx.physics.box2d.CircleShape;
+import com.badlogic.gdx.physics.box2d.Fixture;
+import com.badlogic.gdx.physics.box2d.PolygonShape;
+import com.badlogic.gdx.physics.box2d.World;
+import com.badlogic.gdx.utils.Disposable;
 
-public class Player extends InputAdapter {
+public class Player extends Entity implements Disposable {
 
-	// Jim Sprites
+	/** For sprite animation in box2d bodies */
+	private AnimatedSprite animatedSprite;
+	private AnimatedBox2DSprite animatedBox2DSprite;
+
+	/** Sprites */
 	private Sprite jim0, jim1, jim2, jim3, jim4, jim5, jim6;
 
 	// Animation
-	private Animation walkFrames;
+	private Animation animation;
 	private TextureRegion currentFrame;
 
 	private Sprite[] sprites;
 	private float stateTime;
 	private final float ANIM_DURATION = 0.18f;
 
-	// Rectangles
-	private Rectangle head;
-	private Rectangle body;
-
-	private Rectangle jim;
-
-	// Jims properties
+	/** Total health */
 	private int health = 100;
-	private final float MOVE_SPEED = 60 * 2.5f;
+	/** Total score */
 	private int score = 0;
-	// States
-	@SuppressWarnings("unused")
-	private final int IDLE = 0; // Is actually used
-	@SuppressWarnings("unused")
-	private final int MOVING = 1; // Is actually used
-	private final int DEAD = 2;
 
-	// Jims movement
-	public Vector2 velocity = new Vector2();
+	/** Custom fixtures for more defined body shape */
+	private Fixture headFixture;
 
-	float posX, posY;
-
+	/** Direction the player is facing */
+	private State facing;
 	/**
-	 * True if Jim is facing left}
-	 */
-	public boolean facingLeft = false;
-
-	/**
-	 * This affects Jim's current state he can either be:
+	 * State of the current player
 	 * 
-	 * @param IDLE
-	 *            = 0
-	 * @param MOVING
-	 *            = 1
-	 * @param DEAD
-	 *            = 2
+	 * @see State
 	 */
-	public int currentState = 0;
+	private State currentState;
 
 	/**
-	 * Default constructor, only used for debugging something at some point...
+	 * Controls the players current state, controls the animation and game
+	 * status
+	 * 
+	 * @author Stephen Gibson
+	 * 
 	 */
-	public Player() {
+	public enum State {
+		IDLE, MOVING, DEAD, FACING_LEFT, FACING_RIGHT;
 
-		// Start creating Jim
-		body = new Rectangle();
+		private State() {
 
-		body.height = 68;
-		body.width = 32;
-		body.x = 400 - body.getWidth();
-		body.y = 0;
+		}
+
+	}
+
+	/**
+	 * Creates a player at a random position between 2 and 18 in world coords
+	 */
+	public Player(World world) {
+		super();
+
+		setCollisionFilters(fd,
+				EntityCategory.PLAYER.getValue(),
+				EntityCategory.BOUNDARY.getValue()
+						| EntityCategory.ROCK.getValue() | EntityCategory.SENSOR.getValue());
+
+		PolygonShape player = new PolygonShape();
+		player.setAsBox(0.45f, 0.60f);
+
+		bd.type = BodyType.DynamicBody;
+		bd.position.set(MathUtils.random(2, 18), 0.50f);
+		bd.fixedRotation = true;
+		bd.linearDamping = 0;
+
+		fd.friction = 0.65f;
+		fd.restitution = 0f;
+		fd.density = 0.15f;
+		fd.shape = player;
+
+		body = world.createBody(bd);
+		fixture = body.createFixture(fd);
+		
+		CircleShape head = new CircleShape();
+		head.setRadius(0.30f);
+		head.setPosition(new Vector2(0, 0.90f));
+		fd.shape = head;
+		
+		fixture = body.createFixture(fd);
+		body.setUserData(this);
 
 		jim0 = new Sprite(new Texture(Gdx.files.internal("data/img/jim0.png")));
 		jim1 = new Sprite(new Texture(Gdx.files.internal("data/img/jim1.png")));
@@ -99,92 +126,55 @@ public class Player extends InputAdapter {
 		jim4 = new Sprite(new Texture(Gdx.files.internal("data/img/jim4.png")));
 		jim5 = new Sprite(new Texture(Gdx.files.internal("data/img/jim5.png")));
 		jim6 = new Sprite(new Texture(Gdx.files.internal("data/img/jim6.png")));
+		sprites = new Sprite[] { jim1, jim2, jim3, jim4, jim5, jim6 };
+		
 
 		// Create animations
-		sprites = new Sprite[] { jim1, jim2, jim3, jim4, jim5, jim6 };
-		walkFrames = new Animation(ANIM_DURATION, sprites);
+		animation = new Animation(ANIM_DURATION, sprites);
 		stateTime = 0;
+
+		animation.setPlayMode(Animation.LOOP);
+		animatedSprite = new AnimatedSprite(animation);
+		animatedBox2DSprite = new AnimatedBox2DSprite(animatedSprite);
+		animatedBox2DSprite.setAdjustSize(false);
+		animatedBox2DSprite.setHeight(1.8f);
+		animatedBox2DSprite.setWidth(1f);
+
+		currentState = State.IDLE;
+		animatedBox2DSprite.setPlaying(false);
 
 	}
 
 	/**
-	 * Create Jim at the given X and Y coordinates
+	 * Update the player
+	 * <p>
+	 * Processes input and keeps track of animation state time
+	 * </p>
 	 * 
-	 * @param posX
-	 * @param posY
+	 * @param delta
 	 */
-	public Player(float posX, float posY) {
-
-		// Start creating Jim
-		head = new Rectangle();
-		body = new Rectangle();
-
-		jim = new Rectangle();
-
-		body.height = 43;
-		body.width = 32;
-		body.x = posX - body.getWidth();
-		body.y = posY;
-
-		head.height = 26;
-		head.width = 14;
-		head.x = posX - 22;
-		head.y = posY + 40;
-
-		jim.height = 69;
-		jim.width = 46;
-
-		jim.merge(body);
-		jim.merge(head);
-
-		jim0 = new Sprite(new Texture(Gdx.files.internal("data/img/jim0.png")));
-		jim1 = new Sprite(new Texture(Gdx.files.internal("data/img/jim1.png")));
-		jim2 = new Sprite(new Texture(Gdx.files.internal("data/img/jim2.png")));
-		jim3 = new Sprite(new Texture(Gdx.files.internal("data/img/jim3.png")));
-		jim4 = new Sprite(new Texture(Gdx.files.internal("data/img/jim4.png")));
-		jim5 = new Sprite(new Texture(Gdx.files.internal("data/img/jim5.png")));
-		jim6 = new Sprite(new Texture(Gdx.files.internal("data/img/jim6.png")));
-
-		// Create animations
-		sprites = new Sprite[] { jim1, jim2, jim3, jim4, jim5, jim6 };
-		walkFrames = new Animation(ANIM_DURATION, sprites);
-		stateTime = 0;
-
-	}
-
 	public void update(float delta) {
 
 		stateTime += Gdx.graphics.getDeltaTime();
-		currentFrame = walkFrames.getKeyFrame(stateTime, true);
+		currentFrame = animation.getKeyFrame(stateTime, true);
 
-		body.x += velocity.x * delta;
-		head.x += velocity.x * delta;
-
-		keepBounds();
-
-	}
-
-	/**
-	 * This method keeps Jim within scope of the screen ( within zero and max
-	 * width on X and zero on Y )
-	 */
-	private void keepBounds() {
-
-		// Edge collisions
-		if (body.x < 0) {
-			body.x = 0;
-			head.x = 0 + head.getWidth() - 6;
-			velocity.x = 0;
-			currentState = 0;
-		} else if (body.x > Gdx.graphics.getWidth() - body.getWidth()) {
-			body.x = Gdx.graphics.getWidth() - body.getWidth();
-			head.x = Gdx.graphics.getWidth() - head.getWidth() - 9;
-			velocity.x = 0;
-			currentState = 0;
+		if (Gdx.input.isKeyPressed(Keys.A)) {
+			setCurrentState(State.MOVING);
+			setFacing(State.FACING_LEFT);
+			body.setLinearVelocity(-5, 0);
+			animatedBox2DSprite.play();
+		} else if (Gdx.input.isKeyPressed(Keys.D)) {
+			setFacing(State.FACING_RIGHT);
+			setCurrentState(State.MOVING);
+			body.setLinearVelocity(5, 0);
+			animatedBox2DSprite.play();
+		} else {
+			setFacing(getFacing());
+			setCurrentState(State.IDLE);
+			animatedBox2DSprite.stop();
+			body.setLinearVelocity(0, 0);
 		}
-		if (body.y < 0) {
-			body.y = 0;
-		}
+		
 
 	}
 
@@ -196,17 +186,26 @@ public class Player extends InputAdapter {
 	public boolean isDead() {
 		if (getHealth() < 0) {
 			setHealth(0);
-			setCurrentState(DEAD);
+			setCurrentState(State.DEAD);
 			return true;
 		}
 		return false;
 	}
 
+	/**
+	 * Called when the player gets hit by an entity
+	 * 
+	 * @param damageDone
+	 *            - Do damage if applicable
+	 * @param scoreGained
+	 *            - Increase score if applicable
+	 */
 	public void hit(int damageDone, int scoreGained) {
 		setHealth(getHealth() - damageDone);
 		setScore(getScore() + scoreGained);
 	}
 
+	@Override
 	public void dispose() {
 		jim0.getTexture().dispose();
 		jim1.getTexture().dispose();
@@ -223,11 +222,11 @@ public class Player extends InputAdapter {
 	}
 
 	public Animation getWalkFrames() {
-		return walkFrames;
+		return animation;
 	}
 
 	public void setWalkFrames(Animation walkFrames) {
-		this.walkFrames = walkFrames;
+		this.animation = walkFrames;
 	}
 
 	public TextureRegion getCurrentFrame() {
@@ -254,22 +253,6 @@ public class Player extends InputAdapter {
 		this.stateTime = stateTime;
 	}
 
-	public Rectangle getHead() {
-		return head;
-	}
-
-	public void setHead(Rectangle head) {
-		this.head = head;
-	}
-
-	public Rectangle getBody() {
-		return body;
-	}
-
-	public void setBody(Rectangle body) {
-		this.body = body;
-	}
-
 	public int getHealth() {
 		return health;
 	}
@@ -286,43 +269,19 @@ public class Player extends InputAdapter {
 		this.score = score;
 	}
 
-	public Vector2 getVelocity() {
-		return velocity;
+	public State getFacing() {
+		return facing;
 	}
 
-	public void setVelocity(Vector2 velocity) {
-		this.velocity = velocity;
+	public void setFacing(State facing) {
+		this.facing = facing;
 	}
 
-	public float getPosX() {
-		return posX;
-	}
-
-	public void setPosX(float posX) {
-		this.posX = posX;
-	}
-
-	public float getPosY() {
-		return posY;
-	}
-
-	public void setPosY(float posY) {
-		this.posY = posY;
-	}
-
-	public boolean isFacingLeft() {
-		return facingLeft;
-	}
-
-	public void setFacingLeft(boolean facingLeft) {
-		this.facingLeft = facingLeft;
-	}
-
-	public int getCurrentState() {
+	public State getCurrentState() {
 		return currentState;
 	}
 
-	public void setCurrentState(int currentState) {
+	public void setCurrentState(State currentState) {
 		this.currentState = currentState;
 	}
 
@@ -330,57 +289,12 @@ public class Player extends InputAdapter {
 		return ANIM_DURATION;
 	}
 
-	public float getMOVE_SPEED() {
-		return MOVE_SPEED;
+	public AnimatedBox2DSprite getAnimatedBox2DSprite() {
+		return animatedBox2DSprite;
 	}
-
-	/********************
-	 * Keyboard control *
-	 ********************/
-
-	@Override
-	public boolean keyDown(int keycode) {
-
-		switch (keycode) {
-		case Keys.A:
-			velocity.x += -MOVE_SPEED;
-			currentState = 1;
-			facingLeft = true;
-			return true;
-		case Keys.D:
-			velocity.x += MOVE_SPEED;
-			currentState = 1;
-			facingLeft = false;
-			return true;
-		case Keys.T:
-			if (!WorldRenderer.isBox2D) {
-				WorldRenderer.isBox2D = true;
-			} else {
-				WorldRenderer.isBox2D = false;
-			}
-			return true;
-
-		}
-		return false;
-	}
-
-	@Override
-	public boolean keyUp(int keycode) {
-
-		switch (keycode) {
-		case Keys.A:
-			velocity.x = 0;
-			currentState = 0;
-			facingLeft = true;
-			return true;
-		case Keys.D:
-			velocity.x = 0;
-			currentState = 0;
-			facingLeft = false;
-			return true;
-		}
-		return false;
-
+	
+	public Fixture getHeadFixture() {
+		return headFixture;
 	}
 
 }

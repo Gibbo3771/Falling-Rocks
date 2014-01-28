@@ -19,11 +19,14 @@ package com.gibbo.fallingrocks.screens;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.utils.Array;
 import com.gibbo.fallingrocks.engine.Level;
 import com.gibbo.fallingrocks.engine.WorldRenderer;
 import com.gibbo.fallingrocks.entity.FallingEntity;
 import com.gibbo.fallingrocks.entity.Player;
+import com.gibbo.fallingrocks.entity.pickup.Collectable;
 
 public class GameScreen implements Screen {
 
@@ -42,15 +45,14 @@ public class GameScreen implements Screen {
 	public GameScreen() {
 
 		// Instantiate our objects
-		player = new Player(200, 0);
-		renderer = new WorldRenderer(player);
+		World world = new World(new Vector2(0, -9.81f), true);
+		player = new Player(world);
+		renderer = new WorldRenderer(player, world);
 		level = new Level(player);
 
 		fallingEntity = new Array<FallingEntity>();
 
-		Gdx.input.setInputProcessor(player);
 		WorldRenderer.world.setContactListener(level);
-		
 
 	}
 
@@ -65,7 +67,12 @@ public class GameScreen implements Screen {
 		// Check if jim is dead, if not update him
 		if (player.isDead()) {
 			level.setSpawnOn(false);
-			level.getFallingEntity().clear();
+			for (FallingEntity entity : level.getFallingEntity()) {
+				if (entity instanceof Collectable) {
+					level.getTmpBodies().add(entity.getBody());
+					level.getFallingEntity().removeValue(entity, true);
+				}
+			}
 		} else {
 			// Update jim
 			player.update(delta);

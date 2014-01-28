@@ -18,7 +18,6 @@ package com.gibbo.fallingrocks.engine;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input.Keys;
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
@@ -26,24 +25,18 @@ import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.Disposable;
 import com.gibbo.fallingrocks.entity.FallingEntity;
 import com.gibbo.fallingrocks.entity.Player;
-import com.gibbo.fallingrocks.screens.GameScreen;
+import com.gibbo.fallingrocks.entity.Player.State;
 
-public class WorldRenderer {
-
-	/**
-	 * IMPORTANT, THIS BOOLEAN IS USED TO SWITCH BETWEEN BOX2D GENERATION AND
-	 * NON BOX2D
-	 */
-	public static boolean isBox2D;
+public class WorldRenderer implements Disposable{
 
 	// Reference to Jim
 	private Player player;
@@ -79,8 +72,9 @@ public class WorldRenderer {
 	private int healthbarTotal;
 	private int healthbarTotalUnder = 200;
 
-	public WorldRenderer(Player player) {
+	public WorldRenderer(Player player, World world) {
 		this.player = player;
+		WorldRenderer.world = world;
 
 		/* Create old cam */
 		UICam = new OrthographicCamera();
@@ -132,8 +126,35 @@ public class WorldRenderer {
 
 		/* Draw the Box2D sprites associated with the body */
 
+		if (player.getCurrentState() == State.MOVING) {
+			if (player.getFacing() == State.FACING_LEFT
+					&& !player.getAnimatedBox2DSprite().isFlipX()) {
+				player.getAnimatedBox2DSprite().flipFrames(true, false);
+			} else if (player.getFacing() == State.FACING_RIGHT
+					&& player.getAnimatedBox2DSprite().isFlipX()) {
+				player.getAnimatedBox2DSprite().flipFrames(true, false);
+			}
+			player.getAnimatedBox2DSprite().draw(batch, player.getBody());
+		} else {
+			if (player.getCurrentState() == State.IDLE
+					|| player.getCurrentState() == State.DEAD) {
+				if (player.getFacing() == State.FACING_LEFT
+						&& !player.getJim0().isFlipX()) {
+					player.getJim0().flip(true, false);
+				} else if (player.getFacing() == State.FACING_RIGHT
+						&& player.getJim0().isFlipX()) {
+					player.getJim0().flip(true, false);
+				}
+			}
+			batch.draw(player.getJim0(),
+					player.getBody().getPosition().x - 0.50f, player.getBody()
+							.getPosition().y - 0.60f, 1f, 1.80f);
+
+		}
+
 		for (FallingEntity entity : entities) {
-			Sprite sprite = entity.getSprite() != null ? entity.getSprite() : null;
+			Sprite sprite = entity.getSprite() != null ? entity.getSprite()
+					: null;
 			Body body = entity.getBody();
 			if (sprite != null && body != null) {
 				sprite.setOrigin(0, 0);
@@ -145,26 +166,12 @@ public class WorldRenderer {
 		}
 
 		if (debug) {
-			drawDebug();
 			box2dDebug.render(world, box2dCam.combined);
 
 		}
 		/***********************************************
 		 * IMPORTANT - Draw things in order of z-index *
 		 **********************************************/
-		drawOldJim();
-
-		// for (FallingEntity entity : entities) {
-		// if (entity instanceof Rock) {
-		// batch.draw(entity.getSprite(), entity.getBounds().x - 5f,
-		// entity.getBounds().y - 5f, entity.getWidth() + 10,
-		// entity.getHeight() + 10);
-		// } else {
-		// batch.draw(entity.getSprite(), entity.getBounds().x,
-		// entity.getBounds().y, entity.getWidth(),
-		// entity.getHeight());
-		// }
-		// }
 		batch.setProjectionMatrix(UICam.combined);
 		// Draw healthbar and the underlay
 		batch.draw(healthbarBG,
@@ -204,69 +211,19 @@ public class WorldRenderer {
 				System.out.println("Can not make time any faster");
 			}
 		}
+		
+		if(Gdx.input.isKeyPressed(Keys.SPACE)){
+			debug = true;
+		}else{
+			debug = false;
+		}
+		
+		
+
 
 	}
 
-	/**
-	 * Draws rectangle debug lines to show the AABB collision boxes
-	 * 
-	 * @deprecated Broken
-	 * 
-	 */
-	private void drawDebug() {
-
-		// draw debug lines
-		debugRender.begin(ShapeType.Line);
-		debugRender.setColor(Color.RED);
-		if (debug) {
-			debugRender.rect(player.getBody().x, player.getBody().y, player.getBody()
-					.getWidth(), player.getBody().getHeight());
-			debugRender.rect(player.getHead().x, player.getHead().y, player.getHead()
-					.getWidth(), player.getHead().getHeight());
-			for (FallingEntity entity : GameScreen.fallingEntity)
-				debugRender.rect(entity.getBounds().x, entity.getBounds().y,
-						entity.getWidth(), entity.getHeight());
-		}
-
-		debugRender.end();
-
-	}
-
-	/**
-	 * This is old code for when I used standard AABB collisions without any
-	 * advanced physics
-	 * 
-	 * @deprecated
-	 */
-	public void drawOldJim() {
-
-		// Draw textures/sprites
-		if (player.currentState == 1) {
-			if (player.facingLeft && !player.getSprites()[1].isFlipX()) {
-				for (int i = 0; i < player.getSprites().length; i++) {
-					player.getSprites()[i].flip(true, false);
-				}
-			} else if (!player.facingLeft && player.getSprites()[1].isFlipX()) {
-				for (int i = 0; i < player.getSprites().length; i++) {
-					player.getSprites()[i].flip(true, false);
-				}
-
-			}
-			batch.draw(player.getCurrentFrame(), player.getBody().x, player.getBody().y,
-					player.getBody().getWidth(), player.getBody().getHeight() + 25);
-		}
-		if (player.currentState == 0 || player.currentState == 2) {
-			if (player.isFacingLeft() && !player.getJim0().isFlipX()) {
-				player.getJim0().flip(true, false);
-			} else if (!player.isFacingLeft() && player.getJim0().isFlipX()) {
-				player.getJim0().flip(true, false);
-			}
-			batch.draw(player.getJim0(), player.getBody().x, player.getBody().y, player
-					.getBody().getWidth(), player.getBody().getHeight() + 25);
-		}
-
-	}
-
+	@Override
 	public void dispose() {
 		batch.dispose();
 		debugRender.dispose();

@@ -27,26 +27,14 @@ import com.gibbo.fallingrocks.engine.WorldRenderer;
  * @author Stephen Gibson
  * 
  */
-public class Diamond extends Gem {
+public class Diamond extends Collectable {
 	
 
-	/**
-	 * 
-	 * @param dmg - The amount of damage the entity does to the player
-	 * @param value - The value worth of the entity
-	 * @param pos - The positon of the entity
-	 * @param sizeX - The width of the entity
-	 * @param sizeY - The height of the entity
-	 */
-	public Diamond() {
-		super(0, 500, new Vector2(MathUtils.random(0, 608), 500), 40, 40);
-		setSprite("data/img/diamond.png");
-	}
 
 	public Diamond(Vector2 pos) {
 		super(pos);
 		
-		
+		setTier(Tier.TIER4);
 		setValue(1000);
 		
 		setBodyLoader("data/img/bodyeditor/gems");
@@ -54,18 +42,19 @@ public class Diamond extends Gem {
 		sprite.setSize(1, 1);
 		sprite.setScale(1, 1);
 		
+		bd.type = BodyType.DynamicBody;
+		body = WorldRenderer.world.createBody(bd);	
+		
 		fd.friction = 0.80f;
 		fd.restitution = 0.08f;
-		fd.density = 0.35f;
+		fd.density = 0.35f;		
 		
-		bd.type = BodyType.DynamicBody;
+		bodyLoader.attachFixture(body, "diamond", fd, 1, 1, 1);		
+		CreateCollectSensor();		
 		
-		body = WorldRenderer.world.createBody(bd);
-		
-		body.setUserData(getSprite());
-		bodyLoader.attachFixture(body, "diamond", fd, 1, 1, 1);
 		body.applyTorque(MathUtils.random(-2, 2), true);
 		body.applyForceToCenter(new Vector2(MathUtils.random(-10, 10), 0), true);
+		sensor.setUserData(this);
 		body.setUserData(this);	
 		
 		

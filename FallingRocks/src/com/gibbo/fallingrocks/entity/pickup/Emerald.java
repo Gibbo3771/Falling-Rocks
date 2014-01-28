@@ -27,49 +27,32 @@ import com.gibbo.fallingrocks.engine.WorldRenderer;
  * @author Stephen Gibson
  * 
  */
-public class Emerald extends Gem {
-
-	/**
-	 * 
-	 * @param dmg
-	 *            - The amount of damage the entity does to the player
-	 * @param value
-	 *            - The value worth of the entity
-	 * @param pos
-	 *            - The positon of the entity
-	 * @param sizeX
-	 *            - The width of the entity
-	 * @param sizeY
-	 *            - The height of the entity
-	 */
-	public Emerald() {
-		super(0, 25, new Vector2(MathUtils.random(0, 608), 500), 32, 32);
-		setSprite("data/img/emerald.png");
-	}
+public class Emerald extends Collectable {
 
 	public Emerald(Vector2 pos) {
 		super(pos);
 
-		setValue(25);
 		setTier(Tier.TIER1);
+		setValue(25);
 
 		setBodyLoader("data/img/bodyeditor/gems");
 		setSprite("data/img/bodyeditor/emerald.png");
 		sprite.setSize(1, 1);
 		sprite.setScale(1, 1);
 
+		bd.type = BodyType.DynamicBody;
+		body = WorldRenderer.world.createBody(bd);
+		
 		fd.friction = 0.80f;
 		fd.restitution = 0.08f;
 		fd.density = 0.35f;
 
-		bd.type = BodyType.DynamicBody;
-
-		body = WorldRenderer.world.createBody(bd);
-
-		body.setUserData(getSprite());
 		bodyLoader.attachFixture(body, "emerald", fd, 1, 1, 1);
+		CreateCollectSensor();
+
 		body.applyTorque(MathUtils.random(-2, 2), true);
 		body.applyForceToCenter(new Vector2(MathUtils.random(-10, 10), 0), true);
+		sensor.setUserData(this);
 		body.setUserData(this);
 
 	}

@@ -27,30 +27,13 @@ import com.gibbo.fallingrocks.engine.WorldRenderer;
  * @author Stephen Gibson
  * 
  */
-public class Ruby extends Gem {
+public class Ruby extends Collectable {
 
-	/**
-	 * 
-	 * @param dmg
-	 *            - The amount of damage the entity does to the player
-	 * @param value
-	 *            - The value worth of the entity
-	 * @param pos
-	 *            - The positon of the entity
-	 * @param sizeX
-	 *            - The width of the entity
-	 * @param sizeY
-	 *            - The height of the entity
-	 */
-	public Ruby() {
-		super(0, 100, new Vector2(MathUtils.random(0, 608), 500), 32, 32);
-		setSprite("data/img/ruby.png");
-
-	}
 
 	public Ruby(Vector2 pos) {
 		super(pos);
 
+		setTier(Tier.TIER2);
 		setValue(100);
 
 		setBodyLoader("data/img/bodyeditor/gems");
@@ -58,18 +41,19 @@ public class Ruby extends Gem {
 		sprite.setSize(1, 1);
 		sprite.setScale(1, 1);
 
+		bd.type = BodyType.DynamicBody;
+		body = WorldRenderer.world.createBody(bd);
+		
 		fd.friction = 0.80f;
 		fd.restitution = 0.05f;
 		fd.density = 0.40f;
-
-		bd.type = BodyType.DynamicBody;
-
-		body = WorldRenderer.world.createBody(bd);
-
-		body.setUserData(getSprite());
+		
 		bodyLoader.attachFixture(body, "ruby", fd, 1, 1, 1);
+		CreateCollectSensor();
+
 		body.applyTorque(MathUtils.random(-2, 2), true);
 		body.applyForceToCenter(new Vector2(MathUtils.random(-10, 10), 0), true);
+		sensor.setUserData(this);
 		body.setUserData(this);
 
 	}

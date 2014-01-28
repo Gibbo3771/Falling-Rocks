@@ -29,34 +29,13 @@ import com.gibbo.fallingrocks.entity.FallingEntity;
  */
 public class Rock extends FallingEntity {
 
-	/** Size of the Rock, between 32 and 64 pixels */
-	private static int size = 32;
-
-	/**
-	 * 
-	 * @param dmg
-	 *            - The amount of damage the entity does to the player
-	 * @param value
-	 *            - The value worth of the entity
-	 * @param pos
-	 *            - The positon of the entity
-	 * @param sizeX
-	 *            - The width of the entity
-	 * @param sizeY
-	 *            - The height of the entity
-	 */
-	public Rock() {
-		super(size / 3, 0, new Vector2(MathUtils.random(0, 608), 500), size,
-				size);
-		setSprite("data/img/rock.png");
-		size = MathUtils.random(32, 64);
-
-	}
 
 	public Rock(Vector2 pos) {
 		super(pos);
 
-		setCollisionFilters(
+		setTier(Tier.TIER1);
+		
+		setCollisionFilters(fd,
 				EntityCategory.ROCK.getValue(),
 				EntityCategory.ROCK.getValue()
 						| EntityCategory.PLAYER.getValue()
@@ -89,22 +68,22 @@ public class Rock extends FallingEntity {
 			break;
 		}
 
-		fd.friction = 0.80f;
-		fd.restitution = 0.05f;
-		fd.density = 0.50f;
-
 		bd.type = BodyType.DynamicBody;
-
+		
 		body = WorldRenderer.world.createBody(bd);
+		
+		fd.friction = 0.80f;
+		fd.restitution = 0.f;
+		fd.density = body.getMass();
+
 		bodyLoader.attachFixture(body, "rock" + ID.toString(), fd, 1.5f, 1, 1);
 
-		spawnPoint = MathUtils.random(1, 20);
 
 		sprite.setSize(1, 1);
 		sprite.setScale(1.55f);
-		body.setUserData(getSprite());
 		body.applyTorque(MathUtils.random(-15, 15), true);
 		body.applyForceToCenter(new Vector2(MathUtils.random(-25, 25), 0), true);
+		body.setUserData(this);
 	}
 
 }

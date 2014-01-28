@@ -62,7 +62,7 @@ public class Boundary {
 		fd.restitution = 0.001f;
 		fd.friction = 0.15f;
 		fd.filter.categoryBits = (short) EntityCategory.BOUNDARY.getValue();
-		fd.filter.maskBits = (short) (EntityCategory.GEM.getValue());
+		fd.filter.maskBits = (short) (EntityCategory.GEM.getValue() | EntityCategory.PLAYER.getValue());
 
 		Body body = WorldRenderer.world.createBody(bd);
 
@@ -73,7 +73,7 @@ public class Boundary {
 		fd.restitution = 0.001f;
 		fd.friction = 0.15f;
 		fd.filter.categoryBits = (short) EntityCategory.BOUNDARY.getValue();
-		fd.filter.maskBits = (short) (EntityCategory.GEM.getValue());
+		fd.filter.maskBits = (short) (EntityCategory.GEM.getValue() | EntityCategory.PLAYER.getValue());
 
 		leftWallFixture = body.createFixture(fd);
 
@@ -82,7 +82,7 @@ public class Boundary {
 		fd.restitution = 0.001f;
 		fd.friction = 0.15f;
 		fd.filter.categoryBits = (short) EntityCategory.BOUNDARY.getValue();
-		fd.filter.maskBits = (short) (EntityCategory.GEM.getValue());
+		fd.filter.maskBits = (short) (EntityCategory.GEM.getValue() | EntityCategory.PLAYER.getValue());
 
 		rightWallFixture = body.createFixture(fd);
 

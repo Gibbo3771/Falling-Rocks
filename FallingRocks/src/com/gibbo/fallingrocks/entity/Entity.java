@@ -16,17 +16,48 @@
 
 package com.gibbo.fallingrocks.entity;
 
+import aurelienribon.bodyeditor.BodyEditorLoader;
+
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.physics.box2d.Body;
+import com.badlogic.gdx.physics.box2d.BodyDef;
+import com.badlogic.gdx.physics.box2d.Fixture;
+import com.badlogic.gdx.physics.box2d.FixtureDef;
+import com.badlogic.gdx.utils.Disposable;
+
 /**
  * 
  * @author Stephen Gibson
  */
-public abstract class Entity {
+public abstract class Entity implements Disposable{
 
 	/** Tier of the entity */
 	private Tier tier;
 
+	/** The entities position */
+	protected Vector2 pos;
+
+	/* Sprite */
+	protected Sprite sprite;
+
+	/* Box2D */
+
+	protected Body body;
+	protected BodyDef bd;
+	protected FixtureDef fd;
+	protected Fixture fixture;
+	protected BodyEditorLoader bodyLoader;
+
+	/**
+	 * The category of the {@link}Entity controls what an entity can collide with
+	 * @author Stephen Gibson
+	 *
+	 */
 	public enum EntityCategory {
-		BOUNDARY(0x0001), ROCK(0x0002), GEM(0x0004), PLAYER(0x0006);
+		BOUNDARY(0x0001), ROCK(0x0002), GEM(0x0004), PLAYER(0x0006), SENSOR(0x0008);
 
 		private int value;
 
@@ -70,5 +101,92 @@ public abstract class Entity {
 	public Tier getTier() {
 		return tier;
 	}
+	
+	/**
+	 * Set the collision filters to control what this entity collides with
+	 * 
+	 * @param fixtureDef - The fixture definition to apply bits
+	 * @param categoryBits - Category of the entity
+	 * @param maskBits - What entity should collide with
+	 */
+	public void setCollisionFilters(FixtureDef fixtureDef, int categoryBits, int maskBits){
+		fixtureDef.filter.categoryBits = (short) categoryBits;
+		fixtureDef.filter.maskBits = (short) maskBits;
+		
+	}
+	
+	public Entity(){
+		bd = new BodyDef();
+		fd = new FixtureDef();
+		
+	}
+
+
+	public void setSprite(String fileLoc) {
+		Sprite sprite = new Sprite(new Texture(Gdx.files.internal(fileLoc)));
+		sprite.setOrigin(0, 0);
+		this.sprite = sprite;
+	}
+
+
+	public Sprite getSprite() {
+		return sprite;
+	}
+
+
+	public void setPos(Vector2 pos) {
+		this.pos = pos;
+	}
+
+	public Vector2 getPos() {
+		return pos;
+	}
+
+
+	public Body getBody() {
+		return body;
+	}
+
+	public void setBody(Body body) {
+		this.body = body;
+	}
+
+	public BodyDef getBd() {
+		return bd;
+	}
+
+	public void setBd(BodyDef bd) {
+		this.bd = bd;
+	}
+
+	public FixtureDef getFd() {
+		return fd;
+	}
+
+	public void setFd(FixtureDef fd) {
+		this.fd = fd;
+	}
+
+	public Fixture getFixture() {
+		return fixture;
+	}
+
+	public void setFixture(Fixture fixture) {
+		this.fixture = fixture;
+	}
+
+	public BodyEditorLoader getBodyLoader() {
+		return bodyLoader;
+	}
+
+	public void setBodyLoader(String file) {
+		bodyLoader = new BodyEditorLoader(Gdx.files.internal(file));
+	}
+	
+	@Override
+	public void dispose() {
+		sprite.getTexture().dispose();
+	}
+
 
 }

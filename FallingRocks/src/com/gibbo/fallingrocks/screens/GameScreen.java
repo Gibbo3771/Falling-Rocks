@@ -16,59 +16,41 @@
 
 package com.gibbo.fallingrocks.screens;
 
-import java.util.Iterator;
-
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Array;
-import com.badlogic.gdx.utils.TimeUtils;
-import com.gibbo.fallingrocks.engine.render.WorldRenderer;
-import com.gibbo.fallingrocks.entity.Diamond;
-import com.gibbo.fallingrocks.entity.Emerald;
+import com.gibbo.fallingrocks.engine.Level;
+import com.gibbo.fallingrocks.engine.WorldRenderer;
 import com.gibbo.fallingrocks.entity.FallingEntity;
-import com.gibbo.fallingrocks.entity.Jim;
-import com.gibbo.fallingrocks.entity.Rock;
-import com.gibbo.fallingrocks.entity.Ruby;
-import com.gibbo.fallingrocks.entity.Sapphire;
+import com.gibbo.fallingrocks.entity.Player;
 
 public class GameScreen implements Screen {
 
 	// Jim
-	private Jim jim;
+	private Player player;
 
-	// Object instances
+	/** Level */
+	private Level level;
+
+	// World rendering
 	private WorldRenderer renderer;
 
 	// FallingEntities
 	public static Array<FallingEntity> fallingEntity;
-	public static Iterator<FallingEntity> iter;
-
-	// Variables
-	private boolean spawnOn = true;
-	private float lastEntity;
-	private int emeraldProbability;
-	private int rubyProbability;
-	private int sapphireProbability;
-	private int diamondProbability;
-
-	// Total number of each in play
-	private int emer;
-	private int ruby;
-	private int saph;
-	private int diam;
-	private int rock;
 
 	public GameScreen() {
 
 		// Instantiate our objects
-		jim = new Jim(200, 0);
-		renderer = new WorldRenderer(jim);
+		player = new Player(200, 0);
+		renderer = new WorldRenderer(player);
+		level = new Level(player);
 
 		fallingEntity = new Array<FallingEntity>();
 
-		Gdx.input.setInputProcessor(jim);
+		Gdx.input.setInputProcessor(player);
+		WorldRenderer.world.setContactListener(level);
+		
 
 	}
 
@@ -77,43 +59,21 @@ public class GameScreen implements Screen {
 		Gdx.gl.glClearColor(0, 0, 0, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-		// Placeholder for death
-		if (jim.isDead()) {
-			spawnOn = false;
+		// Draw the world and render sprites
+		renderer.update(delta, level.getFallingEntity(), level.getTmpBodies());
+
+		// Check if jim is dead, if not update him
+		if (player.isDead()) {
+			level.setSpawnOn(false);
+			level.getFallingEntity().clear();
+		} else {
+			// Update jim
+			player.update(delta);
 		}
 
-		// Update our renderer
-		renderer.update();
-		// Update jim
-		jim.update(delta);
-
-		// Checks if spawning allowed, then spawns entity every 2 seconds
-		if (spawnOn) {
-			if (TimeUtils.nanoTime() - lastEntity > 200000000) {
-				spawnEntity();
-			}
-		}
-
-		// Iterate through entities, update them and check for collisions and
-		// apply game logic
-		iter = fallingEntity.iterator();
-		while (iter.hasNext()) {
-			FallingEntity entity = iter.next();
-			entity.update(delta);
-			if (entity.getBounds().overlaps(jim.body)
-					|| entity.getBounds().overlaps(jim.head)) {
-				if (jim.currentState == 1 || jim.currentState == 0) {
-					iter.remove();
-					// Damage/increase score
-					jim.health -= entity.getDmg();
-					jim.score += entity.getValue();
-				}
-				System.out.println(jim.health);
-			}
-			if (entity.getBounds().y < 0 - entity.getHeight()) {
-				iter.remove();
-			}
-		}
+		// Update the status of the level, add/remove entites and update score
+		// etc etc
+		level.process(delta);
 
 	}
 
@@ -144,45 +104,8 @@ public class GameScreen implements Screen {
 
 	@Override
 	public void dispose() {
-		jim.dispose();
+		player.dispose();
 		renderer.dispose();
-	}
-
-	public void spawnEntity() {
-		emeraldProbability = MathUtils.random(1, 20);
-		rubyProbability = MathUtils.random(1, 40);
-		sapphireProbability = MathUtils.random(1, 70);
-		diamondProbability = MathUtils.random(1, 120);
-
-		if (emeraldProbability == 10) {
-			fallingEntity.add(new Emerald());
-			emer += 1;
-			System.out.println("Creating Emerald: " + emer);
-		} else if (rubyProbability == 20) {
-			fallingEntity.add(new Ruby());
-			ruby += 1;
-			System.out.println("Creating Ruby: " + ruby);
-		} else if (sapphireProbability == 35) {
-			fallingEntity.add(new Sapphire());
-			saph += 1;
-			System.out.println("Creating Sapphire: " + saph);
-		} else if (diamondProbability == 60) {
-			fallingEntity.add(new Diamond());
-			diam += 1;
-			System.out.println("Creating Diamond: " + diam);
-		} else {
-			fallingEntity.add(new Rock());
-			rock += 1;
-			if (jim.body.x == 0
-					|| jim.body.x == Gdx.graphics.getWidth()
-							- jim.body.getWidth()) {
-				fallingEntity.add(new Rock());
-
-			}
-			System.out.println("Creating Rock: " + rock);
-		}
-		lastEntity = TimeUtils.nanoTime();
-
 	}
 
 }

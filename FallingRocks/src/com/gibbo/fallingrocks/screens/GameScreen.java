@@ -16,43 +16,47 @@
 
 package com.gibbo.fallingrocks.screens;
 
+import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.World;
-import com.badlogic.gdx.utils.Array;
+import com.gibbo.fallingrocks.engine.EntityFactory;
 import com.gibbo.fallingrocks.engine.Level;
+import com.gibbo.fallingrocks.engine.Level.Difficulty;
 import com.gibbo.fallingrocks.engine.WorldRenderer;
-import com.gibbo.fallingrocks.entity.FallingEntity;
 import com.gibbo.fallingrocks.entity.Player;
-import com.gibbo.fallingrocks.entity.pickup.Collectable;
 
 public class GameScreen implements Screen {
-
-	// Jim
-	private Player player;
 
 	/** Level */
 	private Level level;
 
-	// World rendering
+	/** World renderer */
 	private WorldRenderer renderer;
-
-	// FallingEntities
-	public static Array<FallingEntity> fallingEntity;
+	
+	public static boolean gameOver;
 
 	public GameScreen() {
+		Level.difficulty = Difficulty.NORMAL;
 
 		// Instantiate our objects
 		World world = new World(new Vector2(0, -9.81f), true);
-		player = new Player(world);
-		renderer = new WorldRenderer(player, world);
-		level = new Level(player);
+		Player player = new Player(world);
+		EntityFactory factory = new EntityFactory(player);
 
-		fallingEntity = new Array<FallingEntity>();
+		renderer = new WorldRenderer(factory, world);
+		level = new Level(factory);
+		factory.setNewSpawn(0.20f / Level.difficulty.getValue());
+//		player.attachTorch();
 
 		WorldRenderer.world.setContactListener(level);
+		InputMultiplexer multi = new InputMultiplexer();
+		multi.addProcessor(renderer);
+		Gdx.input.setInputProcessor(multi);
+		Gdx.input.setCursorCatched(true);
 
 	}
 
@@ -61,26 +65,17 @@ public class GameScreen implements Screen {
 		Gdx.gl.glClearColor(0, 0, 0, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-		// Draw the world and render sprites
-		renderer.update(delta, level.getFallingEntity(), level.getTmpBodies());
-
-		// Check if jim is dead, if not update him
-		if (player.isDead()) {
-			level.setSpawnOn(false);
-			for (FallingEntity entity : level.getFallingEntity()) {
-				if (entity instanceof Collectable) {
-					level.getTmpBodies().add(entity.getBody());
-					level.getFallingEntity().removeValue(entity, true);
-				}
-			}
-		} else {
-			// Update jim
-			player.update(delta);
+		
+		if (gameOver) {
+			dispose();
+			Gdx.input.setInputProcessor(null);
+			gameOver = false;
+			((Game)Gdx.app.getApplicationListener()).setScreen(new GameScreen());
+		}else{
+			level.update(delta);
+			renderer.update(delta);
+			
 		}
-
-		// Update the status of the level, add/remove entites and update score
-		// etc etc
-		level.process(delta);
 
 	}
 
@@ -111,7 +106,7 @@ public class GameScreen implements Screen {
 
 	@Override
 	public void dispose() {
-		player.dispose();
+		level.dispose();
 		renderer.dispose();
 	}
 

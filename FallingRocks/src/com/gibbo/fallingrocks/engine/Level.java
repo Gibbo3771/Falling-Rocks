@@ -19,22 +19,18 @@ package com.gibbo.fallingrocks.engine;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.Contact;
 import com.badlogic.gdx.physics.box2d.ContactImpulse;
 import com.badlogic.gdx.physics.box2d.ContactListener;
 import com.badlogic.gdx.physics.box2d.Manifold;
-import com.badlogic.gdx.utils.Array;
-import com.badlogic.gdx.utils.TimeUtils;
-import com.gibbo.fallingrocks.entity.FallingEntity;
+import com.badlogic.gdx.utils.Disposable;
+import com.gibbo.fallingrocks.entity.Entity;
 import com.gibbo.fallingrocks.entity.Player;
 import com.gibbo.fallingrocks.entity.danger.Rock;
-import com.gibbo.fallingrocks.entity.pickup.Collectable;
-import com.gibbo.fallingrocks.entity.pickup.Diamond;
-import com.gibbo.fallingrocks.entity.pickup.Emerald;
-import com.gibbo.fallingrocks.entity.pickup.Ruby;
-import com.gibbo.fallingrocks.entity.pickup.Sapphire;
+import com.gibbo.fallingrocks.entity.pickup.Indicator;
+import com.gibbo.fallingrocks.entity.pickup.health.HealthPack;
+import com.gibbo.fallingrocks.entity.pickup.treasure.Treasure;
+import com.gibbo.fallingrocks.screens.GameScreen;
 
 /**
  * 
@@ -43,7 +39,7 @@ import com.gibbo.fallingrocks.entity.pickup.Sapphire;
  * 
  * @author Stephen Gibson
  */
-public class Level implements ContactListener {
+public class Level implements ContactListener, Disposable, Updatable {
 
 	/**
 	 * Difficulty setting, used to increase/decrease spawn rate and chance
@@ -68,65 +64,67 @@ public class Level implements ContactListener {
 	}
 
 	/** The difficulty of the level */
-	private Difficulty difficulty;
+	public static Difficulty difficulty;
 	/** Player */
 	private Player player;
 	/** Level boundary */
 	private Boundary boundary;
 
-	/** Array of falling entities currently in play */
-	private Array<FallingEntity> fallingEntity;
+	/** Entity factory */
+	private EntityFactory factory;
 
-	/** Bodies to be removed */
-	private Array<Body> entitiesToBeRemoved;
-
-	/** Controls if entities should spawn */
-	private boolean spawnOn = true;
-	/** Timer variable used for controlling entity spawn times */
-	private float lastEntity;
-
-	float test = 150000000;
+	/** Camera shake timers */
+	private float shakeTime, currentShakeTime;
+	/** Camera shake amount */
+	private float shakePower, currentShakePower;
+	/** Movement variables */
+	private float shakeX, shakeY;
 
 	/**
 	 * Initiate a new level or "play session"
 	 * 
 	 * @param player
 	 */
-	public Level(Player player) {
-		this.player = player;
+	public Level(EntityFactory factory) {
+		this.factory = factory;
+		this.player = factory.getPlayer();
 
 		setDifficulty(Difficulty.NORMAL);
 
 		boundary = new Boundary();
-
-		fallingEntity = new Array<FallingEntity>();
-		entitiesToBeRemoved = new Array<Body>();
+		EntityFactory.spawnOn = true;
 
 	}
 
-	public void process(float delta) {
+	@Override
+	public void update(float delta) {
 
-		if (spawnOn) {
-			if (TimeUtils.nanoTime() - lastEntity > 150000000 / getDifficulty()) {
-				fallingEntity.add(spawnEntity());
-				lastEntity = TimeUtils.nanoTime();
+		/** Update all entites present in the level */
+		factory.update(delta);
+
+		if (player.isDead()) {
+			EntityFactory.spawnOn = false;
+			boundary.getLight().setColor(1, 1, 1,
+					boundary.getLight().getColor().a - 0.20f * delta);
+			if (boundary.getLight().getColor().a < 0) {
+				boundary.getLight().setColor(1, 1, 1, 0);
+				GameScreen.gameOver = true;
 			}
 		}
 
-		for (FallingEntity entity : fallingEntity) {
-			if (entity != null && !WorldRenderer.world.isLocked()) {
-				if (entity.getBody().getPosition().y < -2) {
-					entitiesToBeRemoved.add(entity.getBody());
-					fallingEntity.removeValue(entity, true);
-				}
-			}
-		}
+		if (currentShakeTime <= shakeTime) {
+			currentShakePower = shakePower
+					* ((shakeTime - currentShakeTime) / shakeTime);
 
-		for (Body body : entitiesToBeRemoved) {
-			if (body != null && !WorldRenderer.world.isLocked()) {
-				WorldRenderer.world.destroyBody(body);
-				entitiesToBeRemoved.removeValue(body, true);
-			}
+			shakeX = MathUtils.random(-0.5f, 0.5f) * currentShakePower;
+			shakeY = MathUtils.random(-0.5f, 0.5f) * currentShakePower;
+
+			WorldRenderer.box2dCam.translate(-shakeX, -shakeY);
+			currentShakeTime += delta;
+
+		} else {
+			WorldRenderer.box2dCam.setToOrtho(false, 20, 15);
+
 		}
 
 		if (Gdx.input.isKeyPressed(Keys.NUM_1)) {
@@ -142,78 +140,66 @@ public class Level implements ContactListener {
 	}
 
 	/**
-	 * Spawn an entity, such as a gem or a rock. The chances of a gem spawn is
-	 * dependent on a random number generator. If a specific number is not
-	 * rolled, a rock spawns instead
+	 * Shake the camera
+	 * 
+	 * @param power
+	 * @param time
 	 */
-	public FallingEntity spawnEntity() {
-		float emeraldProbability = 16 / getDifficulty();
-		float rubyProbability = 8 / getDifficulty();
-		float sapphireProbability = 3 / getDifficulty();
-		float diamondProbability = 1 / getDifficulty();
-		float chance = MathUtils.random(0f, 100f);
-
-		System.out.println(diamondProbability);
-
-		int x = MathUtils.random(1, 19);
-		if (chance < diamondProbability) {
-			System.out.println("New Diamond");
-			return new Diamond(new Vector2(x, 20));
-		} else if (chance < sapphireProbability) {
-			System.out.println("New Sapphire");
-			return new Sapphire(new Vector2(x, 20));
-		} else if (chance < rubyProbability) {
-			System.out.println("New Ruby");
-			return new Ruby(new Vector2(x, 20));
-		} else if (chance < emeraldProbability) {
-			System.out.println("New Emerald");
-			return new Emerald(new Vector2(x, 20));
-		}
-		return new Rock(new Vector2(x, 20));
-
+	public void shakeCamera(float power, float time) {
+		shakePower = power;
+		shakeTime = time;
+		currentShakeTime = 0;
 	}
 
 	@Override
 	public void beginContact(Contact contact) {
-
-		for (FallingEntity entity : fallingEntity) {
-			if (entity instanceof Rock
-					&& contact.getFixtureA().getBody().getUserData() == entity
-							.getBody().getUserData()
-					&& contact.getFixtureB().getBody().getUserData() == player
-							.getBody().getUserData()) {
-				player.hit(entity.getDmg(), entity.getValue());
-				entity.setDmg(0);
-			}
-			if (entity instanceof Rock
-					&& contact.getFixtureB().getBody().getUserData() == entity
-							.getBody().getUserData()
-					&& contact.getFixtureA().getBody().getUserData() == player
-							.getBody().getUserData()) {
-				player.hit(entity.getDmg(), entity.getValue());
-				entity.setDmg(0);
-			}
-			if (entity instanceof Collectable
-					&& contact.getFixtureA().getBody().getUserData() == player
-							.getBody().getUserData()
-					&& contact.getFixtureB().getBody().getUserData() == entity
-							.getBody().getUserData()) {
-				player.hit(entity.getDmg(), entity.getValue());
-				entitiesToBeRemoved.add(entity.getBody());
-				fallingEntity.removeValue(entity, true);
-				entity.setValue(0);
-			}
-			if (entity instanceof Collectable
-					&& contact.getFixtureB().getBody().getUserData() == player
-							.getBody().getUserData()
-					&& contact.getFixtureA().getBody().getUserData() == entity
-							.getBody().getUserData()) {
-				player.hit(entity.getDmg(), entity.getValue());
-				entity.getBody().setTransform(entity.getBody().getPosition().x,
-						entity.getBody().getPosition().y + 1, 0);
-				entitiesToBeRemoved.add(entity.getBody());
-				fallingEntity.removeValue(entity, true);
-				entity.setValue(0);
+		for (Entity entity : factory.getEntities()) {
+			switch (entity.getType()) {
+			case ROCK:
+				Rock rock = (Rock) entity;
+				if (didCollide(contact, entity, player)) {
+					if (!rock.isAlreadyHit()) {
+						Indicator indicator = new Indicator(player.getBody()
+								.getPosition().x - player.getWidth(), 2.5f);
+						indicator.setColor(1, 0, 0);
+						rock.setIndicator(indicator);
+						rock.damage(player);
+						rock.setAlreadyHit(true);
+						shakeCamera(.10f, 1f);
+					}
+					break;
+				}
+				break;
+			case TREASURE:
+				Treasure treasure = (Treasure) entity;
+				if (didCollide(contact, entity, player)) {
+					if (!treasure.isAlreadyCollected()) {
+						Indicator indicator = new Indicator(player.getBody()
+								.getPosition().x, 2.35f);
+						indicator.setColor(1, 1, 0);
+						treasure.setIndicator(indicator);
+						treasure.addScore(player);
+						treasure.collect();
+						treasure.setAlreadyCollected(true);
+					}
+					break;
+				}
+				break;
+			case HEALTH_PACK:
+				HealthPack healthPack = (HealthPack) entity;
+				if (didCollide(contact, entity, player)) {
+					if (!healthPack.isAlreadyCollected()) {
+						Indicator indicator = new Indicator(player.getBody()
+								.getPosition().x, 2.35f);
+						indicator.setColor(0, 1, 0);
+						healthPack.setIndicator(indicator);
+						healthPack.heal(player);
+						healthPack.collect();
+						healthPack.setAlreadyCollected(true);
+					}
+				}
+			default:
+				break;
 			}
 
 		}
@@ -235,15 +221,50 @@ public class Level implements ContactListener {
 
 	}
 
+	/**
+	 * Checks wether an entity collided with another, removed boilerplate code
+	 * from the {@link}ContactListener methods
+	 * 
+	 * @param contact
+	 * @param entityA
+	 * @param entityB
+	 * @return
+	 */
+	private boolean didCollide(Contact contact, Object entityA, Object entityB) {
+		Entity entity1 = (Entity) entityA;
+		Entity entity2 = (Entity) entityB;
+		if (contact.getFixtureA().getBody().getUserData() == entity2.getBody()
+				.getUserData()
+				&& contact.getFixtureB().getBody().getUserData() == entity1
+						.getBody().getUserData())
+			return true;
+		if (contact.getFixtureB().getBody().getUserData() == entity2.getBody()
+				.getUserData()
+				&& contact.getFixtureA().getBody().getUserData() == entity1
+						.getBody().getUserData()) {
+			return true;
+
+		}
+
+		return false;
+	}
+
+	@Override
+	public void dispose() {
+		factory.dispose();
+		player.dispose();
+		boundary.dispose();
+	}
+
 	public void setDifficulty(Difficulty difficulty) {
-		this.difficulty = difficulty;
+		Level.difficulty = difficulty;
 	}
 
 	public float getDifficulty() {
 		return difficulty.getValue();
 	}
 
-	public Player getJim() {
+	public Player getPlayer() {
 		return player;
 	}
 
@@ -255,32 +276,20 @@ public class Level implements ContactListener {
 		this.player = player;
 	}
 
-	public Array<FallingEntity> getFallingEntity() {
-		return fallingEntity;
+	public float getShakeTime() {
+		return shakeTime;
 	}
 
-	public void setFallingEntity(Array<FallingEntity> fallingEntity) {
-		this.fallingEntity = fallingEntity;
+	public void setShakeTime(float shakeTime) {
+		this.shakeTime = shakeTime;
 	}
 
-	public boolean isSpawnOn() {
-		return spawnOn;
+	public float getCurrentShakeTime() {
+		return currentShakeTime;
 	}
 
-	public void setSpawnOn(boolean spawnOn) {
-		this.spawnOn = spawnOn;
-	}
-
-	public float getLastEntity() {
-		return lastEntity;
-	}
-
-	public void setLastEntity(float lastEntity) {
-		this.lastEntity = lastEntity;
-	}
-
-	public Array<Body> getTmpBodies() {
-		return entitiesToBeRemoved;
+	public void setCurrentShakeTime(float currentShakeTime) {
+		this.currentShakeTime = currentShakeTime;
 	}
 
 }

@@ -17,6 +17,7 @@
 package com.gibbo.fallingrocks.entity;
 
 import com.badlogic.gdx.math.Vector2;
+import com.gibbo.fallingrocks.entity.pickup.Indicator;
 
 /**
  * 
@@ -27,32 +28,17 @@ import com.badlogic.gdx.math.Vector2;
  */
 public abstract class FallingEntity extends Entity {
 
+	/**
+	 * Indicator used to draw information to the player, such as damage taken or
+	 * score gained
+	 */
+	protected Indicator indicator;
 	/** The value of the entity */
-	protected int value;
+	protected float value;
 	/** The damage the entity can do */
 	protected int dmg;
-
-	/**
-	 * @deprecated Constructor used with old basic collision detection, use this
-	 *             for a non physics version of the game
-	 * 
-	 * @param dmg
-	 *            - The amount of damage the entity does to the player
-	 * @param value
-	 *            - The value worth of the entity
-	 * @param pos
-	 *            - The positon of the entity
-	 * @param sizeX
-	 *            - The width of the entity
-	 * @param sizeY
-	 *            - The height of the entity
-	 */
-	public FallingEntity(int dmg, int value, Vector2 pos, int sizeX, int sizeY) {
-		this.dmg = dmg;
-		this.value = value;
-		this.pos = pos;
-
-	}
+	/** The size of the entity, this determines body and sprite size and value */
+	protected float entitySize;
 
 	/**
 	 * Constructor used when created a new entity using Box2D
@@ -62,16 +48,41 @@ public abstract class FallingEntity extends Entity {
 	 */
 	public FallingEntity(Vector2 pos) {
 		super();
-		
+
 		bd.position.set(pos);
 
 	}
 
-	public int getValue() {
+
+	/**
+	 * Create a new indicator for this entity, this should be called when a
+	 * player collides with an entity
+	 * 
+	 * @param indicator
+	 */
+	public void setIndicator(Indicator indicator) {
+		this.indicator = indicator;
+	}
+
+	public Indicator getIndicator() {
+		return indicator;
+	}
+
+	/**
+	 * Get the value of the entity, used for increasing player score
+	 * 
+	 * @return value
+	 */
+	public float getValue() {
 		return value;
 	}
 
-	public void setValue(int value) {
+	/**
+	 * Set the value of the entity, used for increasing the player score
+	 * 
+	 * @param value
+	 */
+	public void setValue(float value) {
 		this.value = value;
 	}
 
@@ -81,6 +92,14 @@ public abstract class FallingEntity extends Entity {
 
 	public void setDmg(int dmg) {
 		this.dmg = dmg;
+	}
+
+	public float getEntitySize() {
+		return entitySize;
+	}
+
+	public void setEntitySize(float size) {
+		this.entitySize = size;
 	}
 
 }

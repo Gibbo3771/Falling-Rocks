@@ -16,64 +16,70 @@
 
 package com.gibbo.fallingrocks.engine;
 
+import box2dLight.RayHandler;
+
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input.Keys;
+import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.physics.box2d.World;
-import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Disposable;
-import com.gibbo.fallingrocks.entity.FallingEntity;
+import com.gibbo.fallingrocks.entity.Entity;
 import com.gibbo.fallingrocks.entity.Player;
 import com.gibbo.fallingrocks.entity.Player.State;
+import com.gibbo.fallingrocks.entity.danger.Rock;
+import com.gibbo.fallingrocks.entity.pickup.health.HealthPack;
+import com.gibbo.fallingrocks.entity.pickup.treasure.Treasure;
 
-public class WorldRenderer implements Disposable{
+public class WorldRenderer extends InputAdapter implements Disposable,
+		Updatable {
 
-	// Reference to Jim
+	/** Player */
 	private Player player;
+	/** Enity factory */
+	private EntityFactory factory;
 
 	/** Camera for UI */
 	private OrthographicCamera UICam;
 	/** Camera used for Box2D */
-	private OrthographicCamera box2dCam;
+	public static OrthographicCamera box2dCam;
 	/** Spritebatch instance */
 	private SpriteBatch batch;
 
-	/** Box2D World */
+	/** Box2D */
 	public static World world;
 	private final int SCALE = 32;
 	private float worldStep = 60f;
+	public static RayHandler handler;
 
 	// Debugging
 	private Box2DDebugRenderer box2dDebug;
 	private ShapeRenderer debugRender;
-	private boolean debug = false;
-
-	// Animation
-	private float stateTime;
-	@SuppressWarnings("unused")
-	private TextureRegion currentFrame;
+	private boolean debug = true;
+	private boolean drawBG = true;
+	private boolean drawFPS = false;
 
 	// UI
 	private Sprite healthbar;
 	private Sprite healthbarBG;
-	private BitmapFont healthFont;
-	private BitmapFont scoreFont;
+	private Sprite bg;
+	private BitmapFont font;
+	private boolean drawDiff = true;
 
-	private int healthbarTotal;
-	private int healthbarTotalUnder = 200;
+	private float healthbarTotal;
 
-	public WorldRenderer(Player player, World world) {
-		this.player = player;
+	public WorldRenderer(EntityFactory factory, World world) {
+		this.factory = factory;
+		this.player = factory.getPlayer();
 		WorldRenderer.world = world;
 
 		/* Create old cam */
@@ -85,6 +91,8 @@ public class WorldRenderer implements Disposable{
 		box2dCam.setToOrtho(false, Gdx.graphics.getWidth() / SCALE,
 				Gdx.graphics.getHeight() / SCALE);
 		world = new World(new Vector2(0, -9.81f), true);
+		RayHandler.useDiffuseLight(true);
+		handler = new RayHandler(world);
 
 		batch = new SpriteBatch();
 
@@ -96,36 +104,181 @@ public class WorldRenderer implements Disposable{
 		// UI elements
 		try {
 			healthbar = new Sprite(new Texture(
-					Gdx.files.internal("data/img/healthbar.png")));
-			healthFont = new BitmapFont();
-			scoreFont = new BitmapFont();
+					Gdx.files.internal("data/img/ui/healthbar.png")));
+			font = new BitmapFont(
+					Gdx.files.internal("data/font/PriceDown38-White.fnt"));
+			font.setScale(0.50f);
 			healthbarBG = new Sprite(new Texture(
-					Gdx.files.internal("data/img/healthbarBG.png")));
+					Gdx.files.internal("data/img/ui/healthbarBG.png")));
+			bg = new Sprite(new Texture(
+					Gdx.files.internal("data/img/backgrounds/bg3.png")));
+
 		} catch (Exception e) {
 			e.printStackTrace();
-			System.out.println("Can not locate UI Textures");
+		}
+
+	}
+
+	@Override
+	public void update(float delta) {
+
+		healthbarTotal = player.getHealth() / 100 * player.getCurrHealth();
+
+		batch.setProjectionMatrix(box2dCam.combined);
+		batch.begin();
+		if (drawBG) {
+			/* Draw background in 3x3 grid */
+			batch.draw(bg, 0, 15, bg.getWidth() / SCALE, bg.getHeight() / SCALE);
+			batch.draw(bg, 0, 15, -bg.getWidth() / SCALE, bg.getHeight()
+					/ SCALE);
+			batch.draw(bg, 20, 15, bg.getWidth() / SCALE, bg.getHeight()
+					/ SCALE);
+
+			batch.draw(bg, 0, 0, bg.getWidth() / SCALE, bg.getHeight() / SCALE);
+			batch.draw(bg, 0, 0, -bg.getWidth() / SCALE, bg.getHeight() / SCALE);
+			batch.draw(bg, 20, 0, bg.getWidth() / SCALE, bg.getHeight() / SCALE);
+
+			batch.draw(bg, 0, 0, bg.getWidth() / SCALE, -bg.getHeight() / SCALE);
+			batch.draw(bg, 0, 0, -bg.getWidth() / SCALE, -bg.getHeight()
+					/ SCALE);
+			batch.draw(bg, 20, 0, -bg.getWidth() / SCALE, -bg.getHeight()
+					/ SCALE);
+		}
+
+		/* Draw the Box2D sprites associated with the body */
+		for (Entity entity : factory.getEntities()) {
+			Sprite sprite = entity.getSprite() != null ? entity.getSprite()
+					: null;
+			Body body = entity.getBody();
+			if (sprite != null && body != null) {
+				sprite.setOrigin(0, 0);
+				sprite.setPosition(body.getPosition().x, body.getPosition().y);
+				sprite.setRotation(body.getAngle() * MathUtils.radiansToDegrees);
+				sprite.draw(batch);
+			}
+
+		}
+
+		drawPlayer();
+
+		batch.end();
+
+		handler.setCombinedMatrix(box2dCam.combined);
+		handler.updateAndRender();
+
+		batch.begin();
+
+		if (debug) {
+			box2dDebug.render(world, box2dCam.combined);
+
+		}
+
+		/***********************************************
+		 * IMPORTANT - Draw things in order of z-index *
+		 **********************************************/
+		batch.setProjectionMatrix(UICam.combined);
+		// Draw healthbar and the underlay
+		if (player.isDead() && font.getColor().a != 0) {
+			font.setColor(1, 1, 1, font.getColor().a - .025f * delta);
+			healthbar.setColor(1, 1, 1, healthbar.getColor().a - .025f * delta);
+			healthbarBG.setColor(1, 1, 1, healthbarBG.getColor().a - .025f
+					* delta);
+			System.out.println(font.getColor().a);
+			if (font.getColor().a <= 0) {
+				font.setColor(1, 1, 1, 0);
+				healthbarBG.setColor(1, 1, 1, 0);
+				healthbar.setColor(1, 1, 1, 0);
+
+			}
+		}
+		batch.draw(healthbarBG,
+				Gdx.graphics.getWidth() - healthbarBG.getWidth() - 10,
+				Gdx.graphics.getHeight() - healthbar.getHeight() - 5,
+				healthbarTotal, healthbar.getHeight() - 5);
+		batch.draw(healthbar, Gdx.graphics.getWidth() - healthbar.getWidth()
+				- 10, Gdx.graphics.getHeight() - healthbar.getHeight() - 5,
+				healthbarTotal * 2, healthbar.getHeight() - 5);
+
+		// Draw all fonts
+		font.draw(batch, "Health    " + healthbarTotal + "%",
+				Gdx.graphics.getWidth() - healthbar.getWidth() / 2 - 60,
+				Gdx.graphics.getHeight() - 15.75f);
+		font.draw(batch, "Score:              " + (int) player.getScore(),
+				Gdx.graphics.getWidth() - healthbar.getWidth(),
+				Gdx.graphics.getHeight() - 40);
+		font.draw(batch, "Highscore:   "
+				+ (int) player.getProfile().getHighScore(),
+				Gdx.graphics.getWidth() - healthbar.getWidth(),
+				Gdx.graphics.getHeight() - 60);
+		if (drawDiff)
+			font.draw(batch, "Difficulty: " + Level.difficulty, 15,
+					Gdx.graphics.getHeight() - 15);
+		if (drawFPS)
+			font.draw(batch, "FPS: " + Gdx.graphics.getFramesPerSecond(), 15,
+					15);
+
+		if (EntityFactory.spawnOn) {
+			for (Entity entity : factory.getEntities()) {
+				switch (entity.getType()) {
+				case TREASURE: {
+					Treasure treasure = (Treasure) entity;
+					Integer tmpValue = (Integer) MathUtils.round(treasure
+							.getValue());
+					if (treasure.isDeleteTimerStart()) {
+						treasure.getIndicator().update(delta);
+						treasure.getIndicator()
+								.draw(batch, tmpValue.toString());
+					}
+				}
+					break;
+				case ROCK: {
+					Rock rock = (Rock) entity;
+					Integer tmpValue = (Integer) rock.getDmg();
+					if (rock.isDeleteTimerStart()) {
+						if (rock.getIndicator() != null) {
+							rock.getIndicator().update(delta);
+							rock.getIndicator().draw(batch,
+									"-" + tmpValue.toString());
+						}
+					}
+				}
+					break;
+				case HEALTH_PACK: {
+					HealthPack healthpack = (HealthPack) entity;
+					Integer tmpValue = (Integer) MathUtils.round(healthpack
+							.getHpAmount());
+					if (healthpack.isDeleteTimerStart()) {
+						healthpack.getIndicator().update(delta);
+						healthpack.getIndicator().draw(batch,
+								"+" + tmpValue.toString());
+					}
+
+				}
+				default:
+					break;
+				}
+			}
+		}
+
+		batch.end();
+
+		world.step(1f / worldStep, 8, 5);
+
+		box2dCam.update();
+		UICam.update();
+
+		if (Gdx.input.isKeyPressed(Keys.SPACE)) {
+			debug = true;
+		} else {
+			debug = false;
 		}
 
 	}
 
 	/**
-	 * Update our graphical representation of the world
-	 * 
-	 * @param entities
-	 *            - Array of entities in play to be drawn to screen
+	 * Draw the player, must call inside a SpriteBatch begin and end
 	 */
-	public void update(float delta, Array<FallingEntity> entities,
-			Array<Body> tmpBodies) {
-
-		stateTime += delta;
-		currentFrame = player.getWalkFrames().getKeyFrame(stateTime, true);
-		healthbarTotal = player.getHealth() * 2;
-
-		batch.setProjectionMatrix(box2dCam.combined);
-		batch.begin();
-
-		/* Draw the Box2D sprites associated with the body */
-
+	public void drawPlayer() {
 		if (player.getCurrentState() == State.MOVING) {
 			if (player.getFacing() == State.FACING_LEFT
 					&& !player.getAnimatedBox2DSprite().isFlipX()) {
@@ -149,83 +302,67 @@ public class WorldRenderer implements Disposable{
 			batch.draw(player.getJim0(),
 					player.getBody().getPosition().x - 0.50f, player.getBody()
 							.getPosition().y - 0.60f, 1f, 1.80f);
+			player.getJim0().setRotation(
+					player.getBody().getAngle() * MathUtils.radiansToDegrees);
 
 		}
+	}
 
-		for (FallingEntity entity : entities) {
-			Sprite sprite = entity.getSprite() != null ? entity.getSprite()
-					: null;
-			Body body = entity.getBody();
-			if (sprite != null && body != null) {
-				sprite.setOrigin(0, 0);
-				sprite.setPosition(body.getPosition().x, body.getPosition().y);
-				sprite.setRotation(body.getAngle() * MathUtils.radiansToDegrees);
-				sprite.draw(batch);
-			}
-
+	@Override
+	public boolean keyDown(int keycode) {
+		switch (keycode) {
+		case Keys.B:
+			setDrawBG(isDrawBG() ? false : true);
+			break;
+		case Keys.G:
+			player.setGodMode(player.isGodMode() ? false : true);
+		case Keys.F:
+			setDrawFPS(isDrawFPS() ? false : true);
+			break;
+		case Keys.L:
+			setDrawDiff(isDrawDiff() ? false : true);
+			break;
+		case Keys.ALT_LEFT:
+			Gdx.input.setCursorCatched(Gdx.input.isCursorCatched() ? false
+					: true);
+			return true;
+		case Keys.R:
+			Gdx.files.external("FallingRocks/saves/profile.sav").delete();
+			player.getProfile().setHighScore(0);
+			break;
+		default:
+			break;
 		}
-
-		if (debug) {
-			box2dDebug.render(world, box2dCam.combined);
-
-		}
-		/***********************************************
-		 * IMPORTANT - Draw things in order of z-index *
-		 **********************************************/
-		batch.setProjectionMatrix(UICam.combined);
-		// Draw healthbar and the underlay
-		batch.draw(healthbarBG,
-				Gdx.graphics.getWidth() - healthbarBG.getWidth() - 5,
-				Gdx.graphics.getHeight() - healthbar.getHeight() + 5,
-				healthbarTotalUnder, healthbar.getHeight() - 10);
-		batch.draw(healthbar, Gdx.graphics.getWidth() - healthbar.getWidth()
-				- 5, Gdx.graphics.getHeight() - healthbar.getHeight() + 5,
-				healthbarTotal, healthbar.getHeight() - 10);
-
-		// Draw all fonts
-		healthFont.draw(batch, "Health",
-				Gdx.graphics.getWidth() - healthbar.getWidth() / 2 - 20,
-				Gdx.graphics.getHeight() - 5);
-		scoreFont.draw(batch, "Score:             " + player.getScore(),
-				Gdx.graphics.getWidth() - healthbar.getWidth(),
-				Gdx.graphics.getHeight() - 25);
-
-		batch.end();
-
-		world.step(1f / worldStep, 8, 5);
-
-		box2dCam.update();
-		UICam.update();
-
-		if (Gdx.input.isKeyPressed(Keys.UP)) {
-			worldStep += 5;
-			if (worldStep > 500) {
-				worldStep = 500;
-				System.out.println("Can not make time any slower");
-			}
-		}
-		if (Gdx.input.isKeyPressed(Keys.DOWN)) {
-			worldStep -= 5;
-			if (worldStep < 61) {
-				worldStep = 60;
-				System.out.println("Can not make time any faster");
-			}
-		}
-		
-		if(Gdx.input.isKeyPressed(Keys.SPACE)){
-			debug = true;
-		}else{
-			debug = false;
-		}
-		
-		
-
-
+		return true;
 	}
 
 	@Override
 	public void dispose() {
 		batch.dispose();
 		debugRender.dispose();
+	}
+
+	public void setDrawBG(boolean drawBG) {
+		this.drawBG = drawBG;
+	}
+
+	public boolean isDrawBG() {
+		return drawBG;
+	}
+
+	public void setDrawFPS(boolean drawFPS) {
+		this.drawFPS = drawFPS;
+	}
+
+	public boolean isDrawFPS() {
+		return drawFPS;
+	}
+
+	public void setDrawDiff(boolean drawDiff) {
+		this.drawDiff = drawDiff;
+	}
+
+	public boolean isDrawDiff() {
+		return drawDiff;
 	}
 }

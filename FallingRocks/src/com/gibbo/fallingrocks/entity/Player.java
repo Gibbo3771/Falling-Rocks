@@ -32,18 +32,25 @@ import com.badlogic.gdx.physics.box2d.CircleShape;
 import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.PolygonShape;
 import com.badlogic.gdx.physics.box2d.World;
+import com.badlogic.gdx.utils.Base64Coder;
 import com.badlogic.gdx.utils.Disposable;
+import com.badlogic.gdx.utils.Json;
+import com.badlogic.gdx.utils.JsonWriter.OutputType;
+import com.gibbo.fallingrocks.engine.Profile;
 
 public class Player extends Entity implements Disposable {
 
-	/** For sprite animation in box2d bodies */
-	private AnimatedSprite animatedSprite;
-	private AnimatedBox2DSprite animatedBox2DSprite;
+	/** Profile of the the player */
+	private Profile profile;
+	/** Json seralization */
+	private transient Json json;
 
 	/** Sprites */
 	private Sprite jim0, jim1, jim2, jim3, jim4, jim5, jim6;
 
-	// Animation
+	/** For sprite animation in box2d bodies */
+	private AnimatedSprite animatedSprite;
+	private AnimatedBox2DSprite animatedBox2DSprite;
 	private Animation animation;
 	private TextureRegion currentFrame;
 
@@ -52,11 +59,21 @@ public class Player extends Entity implements Disposable {
 	private final float ANIM_DURATION = 0.18f;
 
 	/** Total health */
-	private int health = 100;
+	private int health;
+	/** Current health */
+	public int currHealth;
 	/** Total score */
-	private int score = 0;
+	private double score;
+	/** God mode, used for performance debugging */
+	private boolean isGodMode;
+
+	/** Speed of the player */
+	private Vector2 speed;
+	/** Velocity the player can move at */
+	private float velocity;
 
 	/** Custom fixtures for more defined body shape */
+	private CircleShape head;
 	private Fixture headFixture;
 
 	/** Direction the player is facing */
@@ -90,18 +107,36 @@ public class Player extends Entity implements Disposable {
 	public Player(World world) {
 		super();
 
-		setCollisionFilters(fd,
-				EntityCategory.PLAYER.getValue(),
-				EntityCategory.BOUNDARY.getValue()
-						| EntityCategory.ROCK.getValue() | EntityCategory.SENSOR.getValue());
+		json = new Json();
+		json.setOutputType(OutputType.json);
+
+		if (!Gdx.files.external("FallingRocks/saves/profile.sav")
+				.exists()) {
+			Gdx.app.log("Warning", "No Profile found, creating new...");
+			profile = new Profile();
+		} else {
+			load();
+		}
+
+		setHealth(100);
+		setCurrHealth(getHealth());
+		setScore(0);
+		setVelocity(5);
+
+		setWidth(0.45f);
+		setHeight(0.60f);
+
+		setType(EntityType.PLAYER);
+		setCollisionFilters(fd, EntityType.PLAYER.getValue(),
+				EntityType.BOUNDARY.getValue() | EntityType.ROCK.getValue()
+						| EntityType.SENSOR.getValue());
 
 		PolygonShape player = new PolygonShape();
-		player.setAsBox(0.45f, 0.60f);
+		player.setAsBox(getWidth(), getHeight());
 
 		bd.type = BodyType.DynamicBody;
-		bd.position.set(MathUtils.random(2, 18), 0.50f);
+		bd.position.set(MathUtils.random(2, 18), 0f);
 		bd.fixedRotation = true;
-		bd.linearDamping = 0;
 
 		fd.friction = 0.65f;
 		fd.restitution = 0f;
@@ -110,24 +145,30 @@ public class Player extends Entity implements Disposable {
 
 		body = world.createBody(bd);
 		fixture = body.createFixture(fd);
-		
-		CircleShape head = new CircleShape();
+
+		head = new CircleShape();
 		head.setRadius(0.30f);
 		head.setPosition(new Vector2(0, 0.90f));
 		fd.shape = head;
-		
-		fixture = body.createFixture(fd);
+
+		headFixture = body.createFixture(fd);
 		body.setUserData(this);
 
-		jim0 = new Sprite(new Texture(Gdx.files.internal("data/img/jim0.png")));
-		jim1 = new Sprite(new Texture(Gdx.files.internal("data/img/jim1.png")));
-		jim2 = new Sprite(new Texture(Gdx.files.internal("data/img/jim2.png")));
-		jim3 = new Sprite(new Texture(Gdx.files.internal("data/img/jim3.png")));
-		jim4 = new Sprite(new Texture(Gdx.files.internal("data/img/jim4.png")));
-		jim5 = new Sprite(new Texture(Gdx.files.internal("data/img/jim5.png")));
-		jim6 = new Sprite(new Texture(Gdx.files.internal("data/img/jim6.png")));
+		jim0 = new Sprite(new Texture(
+				Gdx.files.internal("data/img/player/jim0.png")));
+		jim1 = new Sprite(new Texture(
+				Gdx.files.internal("data/img/player/jim1.png")));
+		jim2 = new Sprite(new Texture(
+				Gdx.files.internal("data/img/player/jim2.png")));
+		jim3 = new Sprite(new Texture(
+				Gdx.files.internal("data/img/player/jim3.png")));
+		jim4 = new Sprite(new Texture(
+				Gdx.files.internal("data/img/player/jim4.png")));
+		jim5 = new Sprite(new Texture(
+				Gdx.files.internal("data/img/player/jim5.png")));
+		jim6 = new Sprite(new Texture(
+				Gdx.files.internal("data/img/player/jim6.png")));
 		sprites = new Sprite[] { jim1, jim2, jim3, jim4, jim5, jim6 };
-		
 
 		// Create animations
 		animation = new Animation(ANIM_DURATION, sprites);
@@ -142,6 +183,8 @@ public class Player extends Entity implements Disposable {
 
 		currentState = State.IDLE;
 		animatedBox2DSprite.setPlaying(false);
+
+		speed = new Vector2();
 
 	}
 
@@ -158,51 +201,71 @@ public class Player extends Entity implements Disposable {
 		stateTime += Gdx.graphics.getDeltaTime();
 		currentFrame = animation.getKeyFrame(stateTime, true);
 
+		if (isGodMode)
+			currHealth += 100 * delta;
+
+		if (getCurrHealth() > getHealth())
+			setCurrHealth(getHealth());
+
+		body.setLinearVelocity(speed);
 		if (Gdx.input.isKeyPressed(Keys.A)) {
-			setCurrentState(State.MOVING);
 			setFacing(State.FACING_LEFT);
-			body.setLinearVelocity(-5, 0);
+			setCurrentState(State.MOVING);
+			setSpeed(-velocity, 0);
 			animatedBox2DSprite.play();
 		} else if (Gdx.input.isKeyPressed(Keys.D)) {
 			setFacing(State.FACING_RIGHT);
 			setCurrentState(State.MOVING);
-			body.setLinearVelocity(5, 0);
+			setSpeed(velocity, 0);
 			animatedBox2DSprite.play();
 		} else {
-			setFacing(getFacing());
 			setCurrentState(State.IDLE);
 			animatedBox2DSprite.stop();
-			body.setLinearVelocity(0, 0);
+			setSpeed(0, 0);
 		}
 		
+		
+		// Check if player has reached a new high score
+		if (getScore() >= getProfile().getHighScore())
+			profile.setHighScore(getScore());
 
 	}
 
 	/**
-	 * Checks if Jim is dead or alive
+	 * Checks if the player is dead or alive
 	 * 
-	 * @return true if Jim is dead
+	 * @return true if player is dead
 	 */
 	public boolean isDead() {
-		if (getHealth() < 0) {
-			setHealth(0);
+		if (getCurrHealth() <= 0) {
+			// Check if player has reached a new high score
+			if (getScore() >= getProfile().getHighScore()) {
+				profile.setHighScore(getScore());
+				save();
+			}
+			getBody().setLinearVelocity(0, 10);
+			setCurrHealth(0);
 			setCurrentState(State.DEAD);
 			return true;
 		}
 		return false;
 	}
 
-	/**
-	 * Called when the player gets hit by an entity
-	 * 
-	 * @param damageDone
-	 *            - Do damage if applicable
-	 * @param scoreGained
-	 *            - Increase score if applicable
-	 */
-	public void hit(int damageDone, int scoreGained) {
-		setHealth(getHealth() - damageDone);
-		setScore(getScore() + scoreGained);
+	/** Save the players current profile */
+	public void save() {
+		Gdx.app.log("Info", "Saving Profile...");
+		Gdx.files.external("FallingRocks/saves/profile.sav").writeString(
+				Base64Coder.encodeString(json.toJson(profile)), false);
+
+	}
+
+	/** Load a players profile */
+	public void load() {
+		Gdx.app.log("Info", "Loading profile...");
+		String temp = Base64Coder.decodeString(Gdx.files.external(
+				"FallingRocks/saves/profile.sav").readString());
+		profile = json.fromJson(Profile.class, temp);
+
 	}
 
 	@Override
@@ -215,6 +278,14 @@ public class Player extends Entity implements Disposable {
 		jim5.getTexture().dispose();
 		jim6.getTexture().dispose();
 
+	}
+
+	public void setProfile(Profile profile) {
+		this.profile = profile;
+	}
+
+	public Profile getProfile() {
+		return profile;
 	}
 
 	public Sprite getJim0() {
@@ -261,11 +332,19 @@ public class Player extends Entity implements Disposable {
 		this.health = health;
 	}
 
-	public int getScore() {
+	public void setCurrHealth(int currHealth) {
+		this.currHealth = currHealth;
+	}
+
+	public int getCurrHealth() {
+		return currHealth;
+	}
+
+	public double getScore() {
 		return score;
 	}
 
-	public void setScore(int score) {
+	public void setScore(double score) {
 		this.score = score;
 	}
 
@@ -292,9 +371,30 @@ public class Player extends Entity implements Disposable {
 	public AnimatedBox2DSprite getAnimatedBox2DSprite() {
 		return animatedBox2DSprite;
 	}
-	
+
 	public Fixture getHeadFixture() {
 		return headFixture;
+	}
+
+	public void setSpeed(float speedX, float speedY) {
+		this.speed.x = speedX;
+		this.speed.y = speedY;
+	}
+
+	public void setVelocity(float velocity) {
+		this.velocity = velocity;
+	}
+
+	public float getVelocity() {
+		return velocity;
+	}
+
+	public boolean isGodMode() {
+		return isGodMode;
+	}
+
+	public void setGodMode(boolean isGodMode) {
+		this.isGodMode = isGodMode;
 	}
 
 }

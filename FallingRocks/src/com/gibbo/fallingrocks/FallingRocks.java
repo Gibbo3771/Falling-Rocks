@@ -28,7 +28,7 @@ package com.gibbo.fallingrocks;
  */
 
 import com.badlogic.gdx.Game;
-import com.gibbo.fallingrocks.screens.GameScreen;
+import com.gibbo.fallingrocks.screens.MainMenuScreen;
 
 public class FallingRocks extends Game {
 	
@@ -36,7 +36,7 @@ public class FallingRocks extends Game {
 	
 	@Override
 	public void create() {	
-		setScreen(new GameScreen());
+		setScreen(new MainMenuScreen());
 		
 	}
 

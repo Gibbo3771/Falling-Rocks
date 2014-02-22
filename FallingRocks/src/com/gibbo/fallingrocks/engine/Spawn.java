@@ -35,10 +35,10 @@ public interface Spawn {
 	 * Spawn an entity
 	 * 
 	 * @return
-	 * @throws IllegalAccessException 
-	 * @throws InstantiationException 
+	 * @throws IllegalAccessException
+	 * @throws InstantiationException
 	 */
-	Entity spawn() throws InstantiationException, IllegalAccessException;
+	Entity spawn();
 
 	/** Delete and entity from the world */
 	void delete(Entity entity);

@@ -54,7 +54,7 @@ public abstract class EntitySpawner implements Spawn, Updatable {
 	@Override
 	public void update(float delta) {
 		if (toSpawn) {
-			if (TimeUtils.nanoTime() - lastSpawn > Math.secondToNano(newSpawn)) {
+			if (TimeUtils.nanoTime() - lastSpawn > MathUtility.secondToNano(newSpawn)) {
 				factory.getEntities().add(spawn());
 				setLastSpawn(TimeUtils.nanoTime());
 				setToSpawn(false);

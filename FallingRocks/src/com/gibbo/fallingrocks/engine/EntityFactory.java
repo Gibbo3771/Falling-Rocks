@@ -23,7 +23,6 @@ import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.TimeUtils;
 import com.gibbo.fallingrocks.entity.Entity;
 import com.gibbo.fallingrocks.entity.Entity.EntityType;
-import com.gibbo.fallingrocks.entity.FallingEntity;
 import com.gibbo.fallingrocks.entity.Player;
 import com.gibbo.fallingrocks.entity.danger.Rock;
 import com.gibbo.fallingrocks.entity.pickup.health.HealthPackSpawner;
@@ -63,8 +62,7 @@ public class EntityFactory implements Disposable, Updatable {
 	/** Array of entities to be removed */
 	private Array<Entity> entityKill;
 
-	public EntityFactory(Player player) {
-		this.player = player;
+	public EntityFactory() {
 
 		gemSpawner = new GemSpawner(this);
 		healthSpawner = new HealthPackSpawner(this);
@@ -93,7 +91,7 @@ public class EntityFactory implements Disposable, Updatable {
 		// }
 
 		if (spawnOn) {
-			if (TimeUtils.nanoTime() - getLastSpawn() > Math
+			if (TimeUtils.nanoTime() - getLastSpawn() > MathUtility
 					.secondToNano(newSpawn) / Level.difficulty.getValue()) {
 				spawn();
 				setLastSpawn(TimeUtils.nanoTime());
@@ -106,17 +104,18 @@ public class EntityFactory implements Disposable, Updatable {
 		for (Entity entity : entities) {
 			entity.update(delta);
 			if (entity.getType() == EntityType.ROCK) {
-				FallingEntity fallingEntity = (FallingEntity) entity;
-				fallingEntity.update(delta);
+				if (entity.getBody().getPosition().y < -3) {
+					queueForDelete(entity);
+				}
 			}
 			if (entity.canDelete())
 				queueForDelete(entity);
 		}
 
+		/* If world is not in physic step, start deleted queued entities */
 		if (!WorldRenderer.world.isLocked())
 			delete();
-
-		player.update(delta);
+		
 
 	}
 
@@ -129,7 +128,7 @@ public class EntityFactory implements Disposable, Updatable {
 			rolls[i] = MathUtils.random(0, 100);
 		}
 
-		setChance(Math.max(rolls));
+		setChance(MathUtility.max(rolls));
 
 		if (getChance() < healthSpawner.chance) {
 			healthSpawner.setToSpawn(true);
@@ -156,11 +155,10 @@ public class EntityFactory implements Disposable, Updatable {
 	/** Delete entites in the queue */
 	public void delete() {
 		for (Entity entity : entityKill) {
-			if (entity != null)
-				if (entity.canDelete()) {
-					WorldRenderer.world.destroyBody(entity.getBody());
-					entityKill.removeValue(entity, true);
-				}
+			if (entity != null) {
+				WorldRenderer.world.destroyBody(entity.getBody());
+				entityKill.removeValue(entity, true);
+			}
 		}
 	}
 

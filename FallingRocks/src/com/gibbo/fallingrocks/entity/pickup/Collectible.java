@@ -32,6 +32,10 @@ public abstract class Collectible extends FallingEntity {
 	protected SensorBuilder sensorBuilder;
 	/** Use this boolean to prevent continuous collision */
 	protected boolean alreadyCollected;
+	
+	public Collectible(){
+		super();
+	}
 
 	/**
 	 * Create a new instance of collectible
@@ -58,8 +62,6 @@ public abstract class Collectible extends FallingEntity {
 		getBody().setLinearVelocity(0, 0);
 		getBody().setAngularVelocity(0);
 		getBody().setLinearVelocity(0, 7.5f);
-//		getBody().applyLinearImpulse(new Vector2(0, 1.5f), getBody().getWorldCenter(), true);
-//		getBody().applyForceToCenter(0, 60, true);
 
 		setDeleteTimer(TimeUtils.nanoTime());
 		deleteTimerStart = true;

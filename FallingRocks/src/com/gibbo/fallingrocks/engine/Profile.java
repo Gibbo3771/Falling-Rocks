@@ -24,18 +24,39 @@ package com.gibbo.fallingrocks.engine;
 public class Profile {
 
 	/** Highscore */
-	private double highScore;
+	public double highScore;
+	/** Draw background */
+	public boolean drawBG;
+	/** Draw Difficulty overlay */
+	public boolean drawDiffOverlay;
+	/** Draw FPS counter */
+	public boolean drawFPSCounter;
+	
+	/** True of any settings are changed, forces a save */
+	public boolean settingsChanged;
+	
+	/* Unlocks */
+	/** Has hard been unlocked? */
+	public boolean isHardUnlocked;
+	
+	/** Has impossibru been unlocked? */
+	public boolean isImpossibruUnlocked;
 
 	public Profile() {
 
 	}
 
-	public void setHighScore(double highScore) {
-		this.highScore = highScore;
+	public Profile(boolean drawBg, boolean drawDiffOverlay,
+			boolean drawFPSCounter) {
+		this.drawBG = drawBg;
+		this.drawDiffOverlay = drawDiffOverlay;
+		this.drawFPSCounter = drawFPSCounter;
 	}
-
-	public double getHighScore() {
-		return highScore;
+	
+	public void reset(){
+		highScore = 0;
+		isHardUnlocked = false;
+		isImpossibruUnlocked =false;
 	}
 
 }

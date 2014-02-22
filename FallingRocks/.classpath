@@ -9,5 +9,9 @@
 	<classpathentry exported="true" kind="lib" path="libs/tween-engine-api.jar" sourcepath="libs/tween-engine-api-sources.jar"/>
 	<classpathentry kind="lib" path="libs/box2dlights-sources.jar"/>
 	<classpathentry kind="lib" path="libs/box2dlights.jar" sourcepath="libs/box2dlights-sources.jar"/>
+	<classpathentry kind="lib" path="libs/gdx-freetype.jar"/>
+	<classpathentry kind="lib" path="libs/gdx-freetype-natives.jar"/>
+	<classpathentry kind="lib" path="libs/GameUtil.jar"/>
+	<classpathentry kind="lib" path="/SwarmConnect/libs/Swarm.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -55,6 +55,7 @@ public class Boundary implements Disposable{
 				-1, 90, 90);
 		light.setColor(1, 1, 1, .70f);
 		light.setStaticLight(true);
+		light.setXray(true);
 
 		bd = new BodyDef();
 		fd = new FixtureDef();
@@ -103,7 +104,7 @@ public class Boundary implements Disposable{
 		body.setUserData(this);
 
 	}
-
+	
 	@Override
 	public void dispose() {
 		leftWall.dispose();
@@ -122,6 +123,7 @@ public class Boundary implements Disposable{
 	public Fixture getRightWallFixture() {
 		return rightWallFixture;
 	}
+	
 	
 	public ConeLight getLight() {
 		return light;

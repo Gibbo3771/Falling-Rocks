@@ -16,6 +16,7 @@
 
 package com.gibbo.fallingrocks.entity.pickup;
 
+import com.badlogic.gdx.Application.ApplicationType;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -48,8 +49,8 @@ public class Indicator implements Updatable, Disposable {
 	 */
 	public Indicator(float x, float y) {
 		this.pos = new Vector3();
-		pos.set(x, y, 0);
-		WorldRenderer.box2dCam.project(getPos());
+		pos.set(x * WorldRenderer.SCALE, y * WorldRenderer.SCALE, 0);
+//		WorldRenderer.box2dCam.project(getPos());
 		font = new BitmapFont(Gdx.files.internal("data/font/PriceDown38-White.fnt"));
 		font.setScale(0.750f);
 		setRed(1);
@@ -77,8 +78,14 @@ public class Indicator implements Updatable, Disposable {
 	@Override
 	public void update(float delta) {
 		pos.add(0, 15f * delta, 0);
+		if(Gdx.app.getType() == ApplicationType.Desktop){
 		font.setColor(getRed(), getGreen(), getBlue(), font.getColor().a
 				- 1.80f * delta);
+		}else{
+			font.setColor(getRed(), getGreen(), getBlue(), font.getColor().a
+					- 1.40f * delta);
+			
+		}
 
 	}
 

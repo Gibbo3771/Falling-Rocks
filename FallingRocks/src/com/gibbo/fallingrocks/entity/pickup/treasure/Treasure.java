@@ -17,9 +17,9 @@
 package com.gibbo.fallingrocks.entity.pickup.treasure;
 
 import com.badlogic.gdx.math.Vector2;
+import com.gibbo.fallingrocks.engine.AssetLoader;
 import com.gibbo.fallingrocks.entity.Player;
 import com.gibbo.fallingrocks.entity.pickup.Collectible;
-import com.gibbo.fallingrocks.entity.pickup.Score;
 
 /**
  * A sub class of {@link Collectible}, anything of value that increases score
@@ -32,6 +32,7 @@ public abstract class Treasure extends Collectible implements Score {
 	public Treasure(Vector2 pos) {
 		super(pos);
 
+		setBodyLoader(AssetLoader.GEMS);
 		setType(EntityType.TREASURE);
 		setCollisionFilters(fd, EntityType.TREASURE.getValue(),
 				EntityType.BOUNDARY.getValue() | EntityType.TREASURE.getValue());

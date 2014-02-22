@@ -19,6 +19,7 @@ package com.gibbo.fallingrocks.entity.pickup.treasure;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType;
+import com.gibbo.fallingrocks.engine.AssetLoader;
 import com.gibbo.fallingrocks.engine.Level;
 import com.gibbo.fallingrocks.engine.WorldRenderer;
 
@@ -39,8 +40,7 @@ public class Sapphire extends Treasure {
 		setEntitySize(MathUtils.random(0.8f, 1.25f));
 		setValue((300 * getEntitySize()) * Level.difficulty.getValue());
 
-		setBodyLoader("data/img/gems/gems");
-		setSprite("data/img/gems/sapphire.png");
+		setSprite(AssetLoader.SHAPPIRE);
 		sprite.setSize(getEntitySize(), getEntitySize());
 		
 		bd.type = BodyType.DynamicBody;

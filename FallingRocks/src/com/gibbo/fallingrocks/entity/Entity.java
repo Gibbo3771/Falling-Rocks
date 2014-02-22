@@ -18,8 +18,8 @@ package com.gibbo.fallingrocks.entity;
 
 import aurelienribon.bodyeditor.BodyEditorLoader;
 
+import com.badlogic.gdx.Application.ApplicationType;
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.Texture.TextureFilter;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.math.MathUtils;
@@ -31,7 +31,7 @@ import com.badlogic.gdx.physics.box2d.FixtureDef;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.TimeUtils;
-import com.gibbo.fallingrocks.engine.Math;
+import com.gibbo.fallingrocks.engine.MathUtility;
 import com.gibbo.fallingrocks.engine.Updatable;
 import com.gibbo.fallingrocks.engine.WorldRenderer;
 
@@ -52,20 +52,30 @@ public abstract class Entity implements Disposable, Updatable {
 	protected EntityType type;
 	/** Tier of the entity */
 	private Tier tier;
-	/** The entities position */
-	protected Vector2 pos;
 	/** Width and height of the entity */
 	protected float width, height;
 
 	/** Used for deleting the entity after it has done a pick up animation */
 	protected boolean canDelete;
+	/**
+	 * Used to start the countdown for deletion, is normally set to true upon
+	 * the entity being picked up so an animation can be played
+	 */
 	protected boolean deleteTimerStart;
+	/** The actual timer for the deletion process */
 	protected double deleteTimer;
 
-	/** If the entity can expire */
+	/** If the entity can expire, this gets set after an entity gets spawned */
 	protected boolean canExpire;
+	/**
+	 * Starts the expiration timer, once starter the entity will disappear from
+	 * the ground after xxx amount of time
+	 */
 	protected boolean expireTimerStart;
+	/** The actual timer for the expiration process */
 	protected double expireTimer;
+	/** How long the entity will stay active before expiring */
+	protected float expireLife;
 
 	/* Sprite */
 	protected Sprite sprite;
@@ -89,7 +99,7 @@ public abstract class Entity implements Disposable, Updatable {
 	 */
 	public enum EntityType {
 		BOUNDARY(0x0001), SENSOR(0x0002), ROCK(0x0003), COLLECTIBLE(0x0004), TREASURE(
-				0x0005), HEALTH_PACK(0x0006), MISC(0x0007), PLAYER(0x0010);
+				0x0005), HEALTH_PACK(0x0006), MISC(0x0007), SHIELD(0x0008), PLAYER(0x0010);
 
 		private int value;
 
@@ -138,15 +148,22 @@ public abstract class Entity implements Disposable, Updatable {
 		sprite.getTexture().setFilter(TextureFilter.Linear,
 				TextureFilter.Linear);
 		if (deleteTimerStart) {
-			fadeSprite(1.80f);
-			if (TimeUtils.nanoTime() - deleteTimer > Math.secondToNano(0.50))
+			if(Gdx.app.getType() == ApplicationType.Desktop){
+				fadeSprite(1.80f);				
+			}else{
+				fadeSprite(1f);
+			}
+			if (TimeUtils.nanoTime() - deleteTimer > MathUtility
+					.secondToNano(0.50))
 				setCanDelete(true);
 		}
 
 		if (canExpire && !deleteTimerStart) {
-			if (TimeUtils.nanoTime() - expireTimer > Math.secondToNano(5)) {
+			if (TimeUtils.nanoTime() - expireTimer > MathUtility
+					.secondToNano(5)) {
 				fadeSprite(5);
-				if (TimeUtils.nanoTime() - expireTimer > Math.secondToNano(7)) {
+				if (TimeUtils.nanoTime() - expireTimer > MathUtility
+						.secondToNano(7)) {
 					setCanDelete(true);
 
 				}
@@ -154,8 +171,6 @@ public abstract class Entity implements Disposable, Updatable {
 		}
 
 	}
-
-	
 
 	/**
 	 * Apply a random torque and force to the entity
@@ -173,6 +188,11 @@ public abstract class Entity implements Disposable, Updatable {
 						* Gdx.graphics.getDeltaTime());
 	}
 
+	/**
+	 * Set the entity tier, used for balancing of entity power
+	 * 
+	 * @param Tier
+	 */
 	public void setTier(Tier Tier) {
 		this.tier = Tier;
 	}
@@ -202,26 +222,28 @@ public abstract class Entity implements Disposable, Updatable {
 		return type;
 	}
 
+	/**
+	 * Set the type of this entity, this is required for collision filtering, if
+	 * nothing is set Box2D will not know what should collide with what
+	 * 
+	 * @param type
+	 */
 	public void setType(EntityType type) {
 		this.type = type;
 	}
 
-	public void setSprite(String fileLoc) {
-		Sprite sprite = new Sprite(new Texture(Gdx.files.internal(fileLoc)));
-		sprite.setOrigin(0, 0);
-		this.sprite = sprite;
+	/**
+	 * Set the sprite for this entity, handled with a string, converting texture
+	 * to sprite is done automatically by the method
+	 * 
+	 * @param fileLoc
+	 */
+	public void setSprite(Sprite sprite) {
+		this.sprite = new Sprite(sprite);
 	}
 
 	public Sprite getSprite() {
 		return sprite;
-	}
-
-	public void setPos(Vector2 pos) {
-		this.pos = pos;
-	}
-
-	public Vector2 getPos() {
-		return pos;
 	}
 
 	/**
@@ -233,6 +255,12 @@ public abstract class Entity implements Disposable, Updatable {
 		this.width = width;
 	}
 
+	/**
+	 * Get the half width of the entity, if used in methods MUST MULTIPLY BY 2
+	 * FOR REAL SIZEs
+	 * 
+	 * @return
+	 */
 	public float getWidth() {
 		return width;
 	}
@@ -246,74 +274,96 @@ public abstract class Entity implements Disposable, Updatable {
 		this.height = height;
 	}
 
+	/**
+	 * Get the half height of this entity, if used in methods MUST MULTIPLY BY 2
+	 * FOR REAL SIZE
+	 * 
+	 * @return
+	 */
 	public float getHeight() {
 		return height;
 	}
 
+	/**
+	 * Get the Box2D body for this entity
+	 * 
+	 * @return
+	 */
 	public Body getBody() {
 		return body;
 	}
 
-	public void setBody(Body body) {
-		this.body = body;
-	}
-
-	public BodyDef getBd() {
-		return bd;
-	}
-
-	public void setBd(BodyDef bd) {
-		this.bd = bd;
-	}
-
-	public FixtureDef getFd() {
-		return fd;
-	}
-
-	public void setFd(FixtureDef fd) {
-		this.fd = fd;
-	}
-
+	/**
+	 * Get the fixture for this entity, currently no entites have multiple
+	 * fixtures besides the {@link Player}
+	 * 
+	 * @return
+	 */
 	public Fixture getFixture() {
 		return fixture;
-	}
-
-	public void setFixture(Fixture fixture) {
-		this.fixture = fixture;
 	}
 
 	public BodyEditorLoader getBodyLoader() {
 		return bodyLoader;
 	}
 
-	public void setBodyLoader(String file) {
-		bodyLoader = new BodyEditorLoader(Gdx.files.internal(file));
+	public void setBodyLoader(BodyEditorLoader bodyLoader) {
+		this.bodyLoader = bodyLoader;
 	}
 
+	/**
+	 * Set the timer for the deleted process, normally set right after
+	 * {@link #canDelete} is true
+	 * 
+	 * @param timer
+	 */
 	public void setDeleteTimer(double timer) {
 		this.deleteTimer = timer;
 	}
 
-	public double getDeleteTimer() {
-		return deleteTimer;
-	}
-
+	/**
+	 * True if this entity can be deleted, usually set to true after pickup
+	 * animation or boundary violation
+	 * 
+	 * @return
+	 */
 	public boolean canDelete() {
 		return canDelete;
 	}
 
+	/**
+	 * True if the delete timer has started, used for control within the loop
+	 * 
+	 * @return
+	 */
 	public boolean isDeleteTimerStart() {
 		return deleteTimerStart;
 	}
 
+	/**
+	 * Set if this entity can be deleted, usually set after an entity passes a
+	 * boundary or has completed a pickup animation
+	 * 
+	 * @param canDelete
+	 */
 	public void setCanDelete(boolean canDelete) {
 		this.canDelete = canDelete;
 	}
 
+	/**
+	 * Set the expire timer, normally called after {@link #canExpire} is set
+	 * 
+	 * @param expireTimer
+	 */
 	public void setExpireTimer(double expireTimer) {
 		this.expireTimer = expireTimer;
 	}
 
+	/**
+	 * Set if the expire timer can start, normally set to true upon entity spawn
+	 * 
+	 * @param canExpire
+	 */
 	public void setCanExpire(boolean canExpire) {
 		this.canExpire = canExpire;
 
@@ -321,7 +371,7 @@ public abstract class Entity implements Disposable, Updatable {
 
 	@Override
 	public void dispose() {
-		sprite.getTexture().dispose();
+//		sprite.getTexture().dispose();
 	}
 
 }

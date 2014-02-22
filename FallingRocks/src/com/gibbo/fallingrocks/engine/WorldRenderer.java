@@ -35,10 +35,10 @@ import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.utils.Disposable;
 import com.gibbo.fallingrocks.entity.Entity;
 import com.gibbo.fallingrocks.entity.Player;
-import com.gibbo.fallingrocks.entity.Player.State;
 import com.gibbo.fallingrocks.entity.danger.Rock;
 import com.gibbo.fallingrocks.entity.pickup.health.HealthPack;
 import com.gibbo.fallingrocks.entity.pickup.treasure.Treasure;
+import com.gibbo.gameutil.camera.ExtendedOrthographicCamera;
 
 public class WorldRenderer extends InputAdapter implements Disposable,
 		Updatable {
@@ -49,15 +49,16 @@ public class WorldRenderer extends InputAdapter implements Disposable,
 	private EntityFactory factory;
 
 	/** Camera for UI */
-	private OrthographicCamera UICam;
+	public static OrthographicCamera UICam;
+	public float width = 640, height = 480;
 	/** Camera used for Box2D */
-	public static OrthographicCamera box2dCam;
+	public static ExtendedOrthographicCamera box2dCam;
 	/** Spritebatch instance */
 	private SpriteBatch batch;
 
 	/** Box2D */
 	public static World world;
-	private final int SCALE = 32;
+	public static final int SCALE = 32;
 	private float worldStep = 60f;
 	public static RayHandler handler;
 
@@ -65,32 +66,27 @@ public class WorldRenderer extends InputAdapter implements Disposable,
 	private Box2DDebugRenderer box2dDebug;
 	private ShapeRenderer debugRender;
 	private boolean debug = true;
-	private boolean drawBG = true;
-	private boolean drawFPS = false;
 
 	// UI
-	private Sprite healthbar;
-	private Sprite healthbarBG;
 	private Sprite bg;
 	private BitmapFont font;
-	private boolean drawDiff = true;
-
-	private float healthbarTotal;
 
 	public WorldRenderer(EntityFactory factory, World world) {
 		this.factory = factory;
-		this.player = factory.getPlayer();
+		this.player = Level.getPlayer();
 		WorldRenderer.world = world;
 
 		/* Create old cam */
 		UICam = new OrthographicCamera();
-		UICam.setToOrtho(false, 640, 480);
+		UICam.setToOrtho(false, width, height);
 
 		/* Create Box2D cam and world */
-		box2dCam = new OrthographicCamera(20, 15);
-		box2dCam.setToOrtho(false, Gdx.graphics.getWidth() / SCALE,
-				Gdx.graphics.getHeight() / SCALE);
-		world = new World(new Vector2(0, -9.81f), true);
+		box2dCam = new ExtendedOrthographicCamera(20, 15,
+				new Vector2(10, 7.5f), false);
+		box2dCam.shakeEnabled = true;
+		box2dCam.smoothing = 0.6f;
+		box2dCam.isFixed = true;
+
 		RayHandler.useDiffuseLight(true);
 		handler = new RayHandler(world);
 
@@ -103,13 +99,9 @@ public class WorldRenderer extends InputAdapter implements Disposable,
 
 		// UI elements
 		try {
-			healthbar = new Sprite(new Texture(
-					Gdx.files.internal("data/img/ui/healthbar.png")));
 			font = new BitmapFont(
 					Gdx.files.internal("data/font/PriceDown38-White.fnt"));
 			font.setScale(0.50f);
-			healthbarBG = new Sprite(new Texture(
-					Gdx.files.internal("data/img/ui/healthbarBG.png")));
 			bg = new Sprite(new Texture(
 					Gdx.files.internal("data/img/backgrounds/bg3.png")));
 
@@ -122,27 +114,19 @@ public class WorldRenderer extends InputAdapter implements Disposable,
 	@Override
 	public void update(float delta) {
 
-		healthbarTotal = player.getHealth() / 100 * player.getCurrHealth();
+		box2dCam.center(delta);
 
 		batch.setProjectionMatrix(box2dCam.combined);
 		batch.begin();
-		if (drawBG) {
-			/* Draw background in 3x3 grid */
-			batch.draw(bg, 0, 15, bg.getWidth() / SCALE, bg.getHeight() / SCALE);
-			batch.draw(bg, 0, 15, -bg.getWidth() / SCALE, bg.getHeight()
-					/ SCALE);
-			batch.draw(bg, 20, 15, bg.getWidth() / SCALE, bg.getHeight()
-					/ SCALE);
+		if (player.getProfile().drawBG) {
+			for (int x = -20; x < 21; x += 20) {
+				for (int y = -15; y < 16; y += 15) {
+					batch.draw(bg, x, y, bg.getWidth() / SCALE, bg.getHeight()
+							/ SCALE);
 
-			batch.draw(bg, 0, 0, bg.getWidth() / SCALE, bg.getHeight() / SCALE);
-			batch.draw(bg, 0, 0, -bg.getWidth() / SCALE, bg.getHeight() / SCALE);
-			batch.draw(bg, 20, 0, bg.getWidth() / SCALE, bg.getHeight() / SCALE);
+				}
+			}
 
-			batch.draw(bg, 0, 0, bg.getWidth() / SCALE, -bg.getHeight() / SCALE);
-			batch.draw(bg, 0, 0, -bg.getWidth() / SCALE, -bg.getHeight()
-					/ SCALE);
-			batch.draw(bg, 20, 0, -bg.getWidth() / SCALE, -bg.getHeight()
-					/ SCALE);
 		}
 
 		/* Draw the Box2D sprites associated with the body */
@@ -159,12 +143,13 @@ public class WorldRenderer extends InputAdapter implements Disposable,
 
 		}
 
-		drawPlayer();
+		player.draw(delta, batch);
 
 		batch.end();
 
 		handler.setCombinedMatrix(box2dCam.combined);
 		handler.updateAndRender();
+		box2dCam.update();
 
 		batch.begin();
 
@@ -180,43 +165,36 @@ public class WorldRenderer extends InputAdapter implements Disposable,
 		// Draw healthbar and the underlay
 		if (player.isDead() && font.getColor().a != 0) {
 			font.setColor(1, 1, 1, font.getColor().a - .025f * delta);
-			healthbar.setColor(1, 1, 1, healthbar.getColor().a - .025f * delta);
-			healthbarBG.setColor(1, 1, 1, healthbarBG.getColor().a - .025f
-					* delta);
+			player.getHealthbar().setColor(1, 1, 1,
+					player.getHealthbar().getColor().a - .025f * delta);
 			System.out.println(font.getColor().a);
 			if (font.getColor().a <= 0) {
 				font.setColor(1, 1, 1, 0);
-				healthbarBG.setColor(1, 1, 1, 0);
-				healthbar.setColor(1, 1, 1, 0);
+				player.getHealthbar().setColor(1, 1, 1, 0);
 
 			}
 		}
-		batch.draw(healthbarBG,
-				Gdx.graphics.getWidth() - healthbarBG.getWidth() - 10,
-				Gdx.graphics.getHeight() - healthbar.getHeight() - 5,
-				healthbarTotal, healthbar.getHeight() - 5);
-		batch.draw(healthbar, Gdx.graphics.getWidth() - healthbar.getWidth()
-				- 10, Gdx.graphics.getHeight() - healthbar.getHeight() - 5,
-				healthbarTotal * 2, healthbar.getHeight() - 5);
+		batch.draw(player.getHealthbar(), width
+				- player.getHealthbar().getWidth() - 10, height
+				- player.getHealthbar().getHeight() - 5, player
+				.getHealthbarSize() * 2, player.getHealthbar().getHeight() - 5);
 
 		// Draw all fonts
-		font.draw(batch, "Health    " + healthbarTotal + "%",
-				Gdx.graphics.getWidth() - healthbar.getWidth() / 2 - 60,
-				Gdx.graphics.getHeight() - 15.75f);
+		font.draw(batch, "Health    " + (int) player.getHealthbarSize() + "%",
+				width - player.getHealthbar().getWidth() / 2 - 60,
+				height - 15.75f);
 		font.draw(batch, "Score:              " + (int) player.getScore(),
-				Gdx.graphics.getWidth() - healthbar.getWidth(),
-				Gdx.graphics.getHeight() - 40);
-		font.draw(batch, "Highscore:   "
-				+ (int) player.getProfile().getHighScore(),
-				Gdx.graphics.getWidth() - healthbar.getWidth(),
-				Gdx.graphics.getHeight() - 60);
-		if (drawDiff)
-			font.draw(batch, "Difficulty: " + Level.difficulty, 15,
-					Gdx.graphics.getHeight() - 15);
-		if (drawFPS)
+				width - player.getHealthbar().getWidth(), height - 40);
+		font.draw(batch, "Highscore:   " + (int) player.getProfile().highScore,
+				width - player.getHealthbar().getWidth(), height - 60);
+		if (player.getProfile().drawDiffOverlay)
+			font.draw(batch, "Difficulty: " + Level.difficulty, 15, height - 15);
+		if (player.getProfile().drawFPSCounter)
 			font.draw(batch, "FPS: " + Gdx.graphics.getFramesPerSecond(), 15,
-					15);
 
+			15);
+
+		/* Draw score and damage indicators */
 		if (EntityFactory.spawnOn) {
 			for (Entity entity : factory.getEntities()) {
 				switch (entity.getType()) {
@@ -264,7 +242,6 @@ public class WorldRenderer extends InputAdapter implements Disposable,
 
 		world.step(1f / worldStep, 8, 5);
 
-		box2dCam.update();
 		UICam.update();
 
 		if (Gdx.input.isKeyPressed(Keys.SPACE)) {
@@ -275,94 +252,10 @@ public class WorldRenderer extends InputAdapter implements Disposable,
 
 	}
 
-	/**
-	 * Draw the player, must call inside a SpriteBatch begin and end
-	 */
-	public void drawPlayer() {
-		if (player.getCurrentState() == State.MOVING) {
-			if (player.getFacing() == State.FACING_LEFT
-					&& !player.getAnimatedBox2DSprite().isFlipX()) {
-				player.getAnimatedBox2DSprite().flipFrames(true, false);
-			} else if (player.getFacing() == State.FACING_RIGHT
-					&& player.getAnimatedBox2DSprite().isFlipX()) {
-				player.getAnimatedBox2DSprite().flipFrames(true, false);
-			}
-			player.getAnimatedBox2DSprite().draw(batch, player.getBody());
-		} else {
-			if (player.getCurrentState() == State.IDLE
-					|| player.getCurrentState() == State.DEAD) {
-				if (player.getFacing() == State.FACING_LEFT
-						&& !player.getJim0().isFlipX()) {
-					player.getJim0().flip(true, false);
-				} else if (player.getFacing() == State.FACING_RIGHT
-						&& player.getJim0().isFlipX()) {
-					player.getJim0().flip(true, false);
-				}
-			}
-			batch.draw(player.getJim0(),
-					player.getBody().getPosition().x - 0.50f, player.getBody()
-							.getPosition().y - 0.60f, 1f, 1.80f);
-			player.getJim0().setRotation(
-					player.getBody().getAngle() * MathUtils.radiansToDegrees);
-
-		}
-	}
-
-	@Override
-	public boolean keyDown(int keycode) {
-		switch (keycode) {
-		case Keys.B:
-			setDrawBG(isDrawBG() ? false : true);
-			break;
-		case Keys.G:
-			player.setGodMode(player.isGodMode() ? false : true);
-		case Keys.F:
-			setDrawFPS(isDrawFPS() ? false : true);
-			break;
-		case Keys.L:
-			setDrawDiff(isDrawDiff() ? false : true);
-			break;
-		case Keys.ALT_LEFT:
-			Gdx.input.setCursorCatched(Gdx.input.isCursorCatched() ? false
-					: true);
-			return true;
-		case Keys.R:
-			Gdx.files.external("FallingRocks/saves/profile.sav").delete();
-			player.getProfile().setHighScore(0);
-			break;
-		default:
-			break;
-		}
-		return true;
-	}
-
 	@Override
 	public void dispose() {
 		batch.dispose();
 		debugRender.dispose();
 	}
 
-	public void setDrawBG(boolean drawBG) {
-		this.drawBG = drawBG;
-	}
-
-	public boolean isDrawBG() {
-		return drawBG;
-	}
-
-	public void setDrawFPS(boolean drawFPS) {
-		this.drawFPS = drawFPS;
-	}
-
-	public boolean isDrawFPS() {
-		return drawFPS;
-	}
-
-	public void setDrawDiff(boolean drawDiff) {
-		this.drawDiff = drawDiff;
-	}
-
-	public boolean isDrawDiff() {
-		return drawDiff;
-	}
 }

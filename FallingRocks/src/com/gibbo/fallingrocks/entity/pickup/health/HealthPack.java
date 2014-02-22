@@ -17,9 +17,9 @@
 package com.gibbo.fallingrocks.entity.pickup.health;
 
 import com.badlogic.gdx.math.Vector2;
+import com.gibbo.fallingrocks.engine.AssetLoader;
 import com.gibbo.fallingrocks.entity.Player;
 import com.gibbo.fallingrocks.entity.pickup.Collectible;
-import com.gibbo.fallingrocks.entity.pickup.Heal;
 
 /**
  * 
@@ -33,6 +33,8 @@ public abstract class HealthPack extends Collectible implements Heal {
 	public HealthPack(Vector2 pos) {
 		super(pos);
 
+		setBodyLoader(AssetLoader.HEALTH);
+		
 		setType(EntityType.HEALTH_PACK);
 		setCollisionFilters(fd, EntityType.HEALTH_PACK.getValue(),
 				EntityType.BOUNDARY.getValue());

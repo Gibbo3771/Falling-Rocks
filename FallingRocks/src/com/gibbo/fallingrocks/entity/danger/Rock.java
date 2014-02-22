@@ -17,15 +17,16 @@
 package com.gibbo.fallingrocks.entity.danger;
 
 import com.badlogic.gdx.graphics.Texture.TextureFilter;
+import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType;
 import com.badlogic.gdx.utils.TimeUtils;
-import com.gibbo.fallingrocks.engine.Math;
+import com.gibbo.fallingrocks.engine.AssetLoader;
+import com.gibbo.fallingrocks.engine.MathUtility;
 import com.gibbo.fallingrocks.engine.WorldRenderer;
 import com.gibbo.fallingrocks.entity.FallingEntity;
 import com.gibbo.fallingrocks.entity.Player;
-import com.gibbo.fallingrocks.entity.pickup.Damage;
 
 /**
  * Tier1 dangerous entity, damages the player
@@ -48,7 +49,7 @@ public class Rock extends FallingEntity implements Damage {
 		setTier(Tier.TIER1);
 
 		setCollisionFilters(fd, EntityType.ROCK.getValue(),
-				EntityType.PLAYER.getValue());
+				EntityType.PLAYER.getValue() | EntityType.SHIELD.getValue());
 
 		setEntitySize(MathUtils.random(1.5f, 2.125f));
 		setDmg((int) (getEntitySize() * 5));
@@ -57,22 +58,22 @@ public class Rock extends FallingEntity implements Damage {
 		/** ID to determine fixture and sprite */
 		Integer ID = MathUtils.random(1, 5);
 
-		setBodyLoader("data/img/rocks/rocks");
+		setBodyLoader(AssetLoader.ROCKS);
 		switch (ID) {
 		case 1:
-			setSprite("data/img/rocks/rock1.png");
+			sprite = new Sprite(AssetLoader.ROCK_1);
 			break;
 		case 2:
-			setSprite("data/img/rocks/rock2.png");
+			sprite = new Sprite(AssetLoader.ROCK_2);
 			break;
 		case 3:
-			setSprite("data/img/rocks/rock3.png");
+			sprite = new Sprite(AssetLoader.ROCK_3);
 			break;
 		case 4:
-			setSprite("data/img/rocks/rock4.png");
+			sprite = new Sprite(AssetLoader.ROCK_4);
 			break;
 		case 5:
-			setSprite("data/img/rocks/rock5.png");
+			sprite = new Sprite(AssetLoader.ROCK_5);
 			break;
 		default:
 			break;
@@ -106,7 +107,7 @@ public class Rock extends FallingEntity implements Damage {
 		sprite.getTexture().setFilter(TextureFilter.Linear,
 				TextureFilter.Linear);
 		if (deleteTimerStart) {
-			if (TimeUtils.nanoTime() - deleteTimer > Math.secondToNano(0.50f)) {
+			if (TimeUtils.nanoTime() - deleteTimer > MathUtility.secondToNano(0.50f)) {
 				setIndicator(null);
 			}
 		}

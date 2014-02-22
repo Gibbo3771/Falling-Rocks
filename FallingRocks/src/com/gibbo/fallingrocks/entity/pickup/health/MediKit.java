@@ -18,6 +18,7 @@ package com.gibbo.fallingrocks.entity.pickup.health;
 
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType;
+import com.gibbo.fallingrocks.engine.AssetLoader;
 import com.gibbo.fallingrocks.engine.WorldRenderer;
 
 /**
@@ -33,8 +34,7 @@ public class MediKit extends HealthPack {
 		setEntitySize(0.90f);
 		setHpAmount(100);
 
-		setBodyLoader("data/img/health/health");
-		setSprite("data/img/health/medikit.png");
+		setSprite(AssetLoader.MEDI_KIT);
 		sprite.setSize(getEntitySize(), getEntitySize());
 
 		bd.type = BodyType.DynamicBody;

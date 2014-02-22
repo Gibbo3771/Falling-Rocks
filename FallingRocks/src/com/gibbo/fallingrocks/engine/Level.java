@@ -17,12 +17,13 @@
 package com.gibbo.fallingrocks.engine;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Contact;
 import com.badlogic.gdx.physics.box2d.ContactImpulse;
 import com.badlogic.gdx.physics.box2d.ContactListener;
 import com.badlogic.gdx.physics.box2d.Manifold;
+import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.utils.Disposable;
 import com.gibbo.fallingrocks.entity.Entity;
 import com.gibbo.fallingrocks.entity.Player;
@@ -34,8 +35,8 @@ import com.gibbo.fallingrocks.screens.GameScreen;
 
 /**
  * 
- * The level class is exactly what it seems, it controls spawns and entities
- * within the world
+ * The level class is exactly what it seems, holds the level status as well as
+ * the player and entities present in the game
  * 
  * @author Stephen Gibson
  */
@@ -48,7 +49,7 @@ public class Level implements ContactListener, Disposable, Updatable {
 	 * 
 	 */
 	public enum Difficulty {
-		EASY(0.50f), NORMAL(1f), HARD(1.25f), IMPOSSIBRU(2f);
+		EASY(0.75f), NORMAL(1f), HARD(1.20f), IMPOSSIBRU(1.40f);
 
 		private float value;
 
@@ -66,41 +67,57 @@ public class Level implements ContactListener, Disposable, Updatable {
 	/** The difficulty of the level */
 	public static Difficulty difficulty;
 	/** Player */
-	private Player player;
+	public static Player player;
 	/** Level boundary */
 	private Boundary boundary;
 
 	/** Entity factory */
 	private EntityFactory factory;
 
-	/** Camera shake timers */
-	private float shakeTime, currentShakeTime;
-	/** Camera shake amount */
-	private float shakePower, currentShakePower;
-	/** Movement variables */
-	private float shakeX, shakeY;
+	/** Asset loader */
+	public AssetLoader assetLoader;
+
+	/** The renderer for the world */
+	private WorldRenderer renderer;
+	/** Box2D World */
+	public World world;
 
 	/**
 	 * Initiate a new level or "play session"
 	 * 
-	 * @param player
 	 */
-	public Level(EntityFactory factory) {
-		this.factory = factory;
-		this.player = factory.getPlayer();
+	public Level() {
 
-		setDifficulty(Difficulty.NORMAL);
+		assetLoader = new AssetLoader();
 
+		world = new World(new Vector2(0, -9.81f), true);
+
+		player = new Player(world);
+		factory = new EntityFactory();
+
+		renderer = new WorldRenderer(factory, world);
 		boundary = new Boundary();
+
 		EntityFactory.spawnOn = true;
+		factory.setNewSpawn(0.20f / Level.difficulty.getValue());
+
+		Gdx.input.setInputProcessor(player);
+		Gdx.input.setCursorCatched(true);
+		world.setContactListener(this);
 
 	}
 
 	@Override
 	public void update(float delta) {
 
-		/** Update all entites present in the level */
+		/* Update all entites present in the level */
 		factory.update(delta);
+
+		/* Update the player */
+		player.update(delta);
+
+		/* Update the rendering */
+		renderer.update(delta);
 
 		if (player.isDead()) {
 			EntityFactory.spawnOn = false;
@@ -112,96 +129,80 @@ public class Level implements ContactListener, Disposable, Updatable {
 			}
 		}
 
-		if (currentShakeTime <= shakeTime) {
-			currentShakePower = shakePower
-					* ((shakeTime - currentShakeTime) / shakeTime);
-
-			shakeX = MathUtils.random(-0.5f, 0.5f) * currentShakePower;
-			shakeY = MathUtils.random(-0.5f, 0.5f) * currentShakePower;
-
-			WorldRenderer.box2dCam.translate(-shakeX, -shakeY);
-			currentShakeTime += delta;
-
-		} else {
-			WorldRenderer.box2dCam.setToOrtho(false, 20, 15);
-
-		}
-
-		if (Gdx.input.isKeyPressed(Keys.NUM_1)) {
-			setDifficulty(Difficulty.EASY);
-		} else if (Gdx.input.isKeyPressed(Keys.NUM_2)) {
-			setDifficulty(Difficulty.NORMAL);
-		} else if (Gdx.input.isKeyPressed(Keys.NUM_3)) {
-			setDifficulty(Difficulty.HARD);
-		} else if (Gdx.input.isKeyPressed(Keys.NUM_4)) {
-			setDifficulty(Difficulty.IMPOSSIBRU);
-		}
-
-	}
-
-	/**
-	 * Shake the camera
-	 * 
-	 * @param power
-	 * @param time
-	 */
-	public void shakeCamera(float power, float time) {
-		shakePower = power;
-		shakeTime = time;
-		currentShakeTime = 0;
 	}
 
 	@Override
 	public void beginContact(Contact contact) {
-		for (Entity entity : factory.getEntities()) {
-			switch (entity.getType()) {
-			case ROCK:
-				Rock rock = (Rock) entity;
-				if (didCollide(contact, entity, player)) {
-					if (!rock.isAlreadyHit()) {
-						Indicator indicator = new Indicator(player.getBody()
-								.getPosition().x - player.getWidth(), 2.5f);
-						indicator.setColor(1, 0, 0);
-						rock.setIndicator(indicator);
-						rock.damage(player);
-						rock.setAlreadyHit(true);
-						shakeCamera(.10f, 1f);
+		/* Check if player is dead before filtering collisions */
+		if (!player.isDead()) {
+			for (Entity entity : factory.getEntities()) {
+				switch (entity.getType()) {
+				case ROCK:
+					Rock rock = (Rock) entity;
+					if (didCollide(contact, entity, player)) {
+						if (!rock.isAlreadyHit()) {
+							Indicator indicator = new Indicator(player
+									.getBody().getPosition().x
+									- player.getWidth(), 2.35f);
+							indicator.setColor(1, 0, 0);
+							rock.setIndicator(indicator);
+							rock.damage(player);
+							rock.setAlreadyHit(true);
+							WorldRenderer.box2dCam.startShake(
+									rock.getBody().getLinearVelocity().y
+											* rock.getEntitySize() / 150, 0.5f,
+									0.125f);
+							int sound = MathUtils.random(1, 2);
+							switch (sound) {
+							case 1:
+								AssetLoader.HURT1.play(1f);
+								break;
+							case 2:
+								AssetLoader.HURT2.play(1f);
+								break;
+							default:
+								break;
+							}
+							Gdx.input.vibrate(125);
+						}
+						break;
 					}
 					break;
-				}
-				break;
-			case TREASURE:
-				Treasure treasure = (Treasure) entity;
-				if (didCollide(contact, entity, player)) {
-					if (!treasure.isAlreadyCollected()) {
-						Indicator indicator = new Indicator(player.getBody()
-								.getPosition().x, 2.35f);
-						indicator.setColor(1, 1, 0);
-						treasure.setIndicator(indicator);
-						treasure.addScore(player);
-						treasure.collect();
-						treasure.setAlreadyCollected(true);
+				case TREASURE:
+					Treasure treasure = (Treasure) entity;
+					if (didCollide(contact, entity, player)) {
+						if (!treasure.isAlreadyCollected()) {
+							Indicator indicator = new Indicator(player
+									.getBody().getPosition().x, 2.35f);
+							indicator.setColor(1, 1, 0);
+							treasure.setIndicator(indicator);
+							treasure.addScore(player);
+							treasure.collect();
+							treasure.setAlreadyCollected(true);
+							AssetLoader.PICKUP2.play(0.15f);
+						}
+						break;
 					}
 					break;
-				}
-				break;
-			case HEALTH_PACK:
-				HealthPack healthPack = (HealthPack) entity;
-				if (didCollide(contact, entity, player)) {
-					if (!healthPack.isAlreadyCollected()) {
-						Indicator indicator = new Indicator(player.getBody()
-								.getPosition().x, 2.35f);
-						indicator.setColor(0, 1, 0);
-						healthPack.setIndicator(indicator);
-						healthPack.heal(player);
-						healthPack.collect();
-						healthPack.setAlreadyCollected(true);
+				case HEALTH_PACK:
+					HealthPack healthPack = (HealthPack) entity;
+					if (didCollide(contact, entity, player)) {
+						if (!healthPack.isAlreadyCollected()) {
+							Indicator indicator = new Indicator(player
+									.getBody().getPosition().x, 2.35f);
+							indicator.setColor(0, 1, 0);
+							healthPack.setIndicator(indicator);
+							healthPack.heal(player);
+							healthPack.collect();
+							healthPack.setAlreadyCollected(true);
+							AssetLoader.PICKUP3.play(0.60f);
+						}
 					}
+				default:
+					break;
 				}
-			default:
-				break;
-			}
 
+			}
 		}
 
 	}
@@ -264,7 +265,7 @@ public class Level implements ContactListener, Disposable, Updatable {
 		return difficulty.getValue();
 	}
 
-	public Player getPlayer() {
+	public static Player getPlayer() {
 		return player;
 	}
 
@@ -272,24 +273,16 @@ public class Level implements ContactListener, Disposable, Updatable {
 		return boundary;
 	}
 
-	public void setJim(Player player) {
-		this.player = player;
+	public void setPlayer(Player player) {
+		Level.player = player;
 	}
 
-	public float getShakeTime() {
-		return shakeTime;
+	public WorldRenderer getRenderer() {
+		return renderer;
 	}
 
-	public void setShakeTime(float shakeTime) {
-		this.shakeTime = shakeTime;
-	}
-
-	public float getCurrentShakeTime() {
-		return currentShakeTime;
-	}
-
-	public void setCurrentShakeTime(float currentShakeTime) {
-		this.currentShakeTime = currentShakeTime;
+	public void setRenderer(WorldRenderer renderer) {
+		this.renderer = renderer;
 	}
 
 }

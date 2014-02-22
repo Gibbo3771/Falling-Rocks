@@ -40,6 +40,10 @@ public abstract class FallingEntity extends Entity {
 	/** The size of the entity, this determines body and sprite size and value */
 	protected float entitySize;
 
+	public FallingEntity(){
+		
+	}
+	
 	/**
 	 * Constructor used when created a new entity using Box2D
 	 * 

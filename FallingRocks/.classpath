@@ -12,6 +12,5 @@
 	<classpathentry kind="lib" path="libs/gdx-freetype.jar"/>
 	<classpathentry kind="lib" path="libs/gdx-freetype-natives.jar"/>
 	<classpathentry kind="lib" path="libs/GameUtil.jar"/>
-	<classpathentry kind="lib" path="/SwarmConnect/libs/Swarm.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -10,6 +10,5 @@
 	<classpathentry exported="true" kind="lib" path="/FallingRocks/libs/bodyeditor-loader.jar" sourcepath="/FallingRocks/libs/bodyeditor-loader-sources.jar"/>
 	<classpathentry exported="true" kind="lib" path="/FallingRocks/libs/gdx.jar" sourcepath="/FallingRocks/libs/gdx-sources.jar"/>
 	<classpathentry exported="true" kind="lib" path="/FallingRocks/libs/tween-engine-api.jar" sourcepath="/FallingRocks/libs/tween-engine-api-sources.jar"/>
-	<classpathentry kind="lib" path="/SwarmConnect/libs/Swarm.jar"/>
 	<classpathentry kind="output" path="bin/classes"/>
 </classpath>

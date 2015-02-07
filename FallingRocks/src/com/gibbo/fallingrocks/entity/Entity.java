@@ -99,7 +99,8 @@ public abstract class Entity implements Disposable, Updatable {
 	 */
 	public enum EntityType {
 		BOUNDARY(0x0001), SENSOR(0x0002), ROCK(0x0003), COLLECTIBLE(0x0004), TREASURE(
-				0x0005), HEALTH_PACK(0x0006), MISC(0x0007), SHIELD(0x0008), PLAYER(0x0010);
+				0x0005), HEALTH_PACK(0x0006), MISC(0x0007), SHIELD(0x0008), PLAYER(
+				0x0010);
 
 		private int value;
 
@@ -143,14 +144,15 @@ public abstract class Entity implements Disposable, Updatable {
 
 	}
 
+
 	@Override
 	public void update(float delta) {
 		sprite.getTexture().setFilter(TextureFilter.Linear,
 				TextureFilter.Linear);
 		if (deleteTimerStart) {
-			if(Gdx.app.getType() == ApplicationType.Desktop){
-				fadeSprite(1.80f);				
-			}else{
+			if (Gdx.app.getType() == ApplicationType.Desktop) {
+				fadeSprite(1.80f);
+			} else {
 				fadeSprite(1f);
 			}
 			if (TimeUtils.nanoTime() - deleteTimer > MathUtility
@@ -371,7 +373,7 @@ public abstract class Entity implements Disposable, Updatable {
 
 	@Override
 	public void dispose() {
-//		sprite.getTexture().dispose();
+		// sprite.getTexture().dispose();
 	}
 
 }

@@ -133,6 +133,7 @@ public class Level implements ContactListener, Disposable, Updatable {
 
 	@Override
 	public void beginContact(Contact contact) {
+		
 		/* Check if player is dead before filtering collisions */
 		if (!player.isDead()) {
 			for (Entity entity : factory.getEntities()) {
@@ -209,7 +210,6 @@ public class Level implements ContactListener, Disposable, Updatable {
 
 	@Override
 	public void endContact(Contact contact) {
-
 	}
 
 	@Override

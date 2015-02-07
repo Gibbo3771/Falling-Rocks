@@ -40,10 +40,7 @@ import com.badlogic.gdx.utils.Base64Coder;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.Json;
 import com.badlogic.gdx.utils.JsonWriter.OutputType;
-import com.gibbo.fallingrocks.engine.Level;
-import com.gibbo.fallingrocks.engine.Level.Difficulty;
 import com.gibbo.fallingrocks.engine.Profile;
-import com.gibbo.fallingrocks.engine.WorldRenderer;
 import com.gibbo.fallingrocks.entity.pickup.powerup.Powerup;
 
 public class Player extends Entity implements Disposable, InputProcessor {
@@ -99,7 +96,6 @@ public class Player extends Entity implements Disposable, InputProcessor {
 	/** Custom fixtures for more defined body shape */
 	private CircleShape head;
 	private Fixture headFixture;
-	
 
 	/** Direction the player is facing */
 	private State facing;
@@ -131,6 +127,7 @@ public class Player extends Entity implements Disposable, InputProcessor {
 	 */
 	public Player(World world) {
 		super();
+		
 
 		/* Create Json serializer */
 		json = new Json();
@@ -259,19 +256,19 @@ public class Player extends Entity implements Disposable, InputProcessor {
 		body.setLinearVelocity(speed);
 
 		// TODO implement somewhere appropriate, used mainly for testing
-		if (Gdx.input.isKeyPressed(Keys.NUM_1)) {
-			Level.difficulty = Difficulty.EASY;
-			getProfile().settingsChanged = true;
-		} else if (Gdx.input.isKeyPressed(Keys.NUM_2)) {
-			getProfile().settingsChanged = true;
-			Level.difficulty = Difficulty.NORMAL;
-		} else if (Gdx.input.isKeyPressed(Keys.NUM_3)) {
-			getProfile().settingsChanged = true;
-			Level.difficulty = Difficulty.HARD;
-		} else if (Gdx.input.isKeyPressed(Keys.NUM_4)) {
-			getProfile().settingsChanged = true;
-			Level.difficulty = Difficulty.IMPOSSIBRU;
-		}
+//		if (Gdx.input.isKeyPressed(Keys.NUM_1)) {
+//			Level.difficulty = Difficulty.EASY;
+//			getProfile().settingsChanged = true;
+//		} else if (Gdx.input.isKeyPressed(Keys.NUM_2)) {
+//			getProfile().settingsChanged = true;
+//			Level.difficulty = Difficulty.NORMAL;
+//		} else if (Gdx.input.isKeyPressed(Keys.NUM_3)) {
+//			getProfile().settingsChanged = true;
+//			Level.difficulty = Difficulty.HARD;
+//		} else if (Gdx.input.isKeyPressed(Keys.NUM_4)) {
+//			getProfile().settingsChanged = true;
+//			Level.difficulty = Difficulty.IMPOSSIBRU;
+//		}
 
 		/* Handle input for desktop */
 		if ((Gdx.input.isKeyPressed(Keys.A))
@@ -309,8 +306,9 @@ public class Player extends Entity implements Disposable, InputProcessor {
 			powerup.update(delta);
 		}
 
+		/** TODO Remove, cheat mode */
 		if (Gdx.input.isKeyPressed(Keys.UP)) {
-			setScore(getScore() + 1000 * delta);
+			setScore(getScore() + 100000 * delta);
 		}
 
 	}
@@ -348,6 +346,7 @@ public class Player extends Entity implements Disposable, InputProcessor {
 					.getPosition().y - 0.60f, 1f, 1.80f);
 			getIdle().setRotation(
 					getBody().getAngle() * MathUtils.radiansToDegrees);
+			
 
 		}
 
@@ -375,8 +374,9 @@ public class Player extends Entity implements Disposable, InputProcessor {
 				save();
 				profile.settingsChanged = false;
 			}
-//			AssetLoader.THEME.setVolume(AssetLoader.THEME.getVolume() - 0.125f
-//					* Gdx.graphics.getDeltaTime());
+			// AssetLoader.THEME.setVolume(AssetLoader.THEME.getVolume() -
+			// 0.125f
+			// * Gdx.graphics.getDeltaTime());
 			getBody().setLinearVelocity(0, 10);
 			setCurrHealth(0);
 			setCurrentState(State.DEAD);
@@ -409,8 +409,16 @@ public class Player extends Entity implements Disposable, InputProcessor {
 			profile.drawBG = profile.drawBG ? false : true;
 			profile.settingsChanged = true;
 			break;
-		case Keys.G:
-			setGodMode(isGodMode() ? false : true);
+		case Keys.SHIFT_LEFT:
+			switch (keycode) {
+			case Keys.SPACE:
+				switch (keycode) {
+				case Keys.G:
+					setGodMode(isGodMode() ? false : true);
+					break;
+				}
+				break;
+			}
 			break;
 		case Keys.F:
 			profile.drawFPSCounter = profile.drawFPSCounter ? false : true;
@@ -424,13 +432,10 @@ public class Player extends Entity implements Disposable, InputProcessor {
 			Gdx.input.setCursorCatched(Gdx.input.isCursorCatched() ? false
 					: true);
 			return true;
-		case Keys.R:
-			Gdx.files.external("FallingRocks/saves/profile.sav").delete();
-			profile.reset();
-			break;
-		case Keys.V:
-			WorldRenderer.box2dCam.startShake(0.50f, 1, 0.1f);
-			break;
+//		case Keys.R:
+//			Gdx.files.external("FallingRocks/saves/profile.sav").delete();
+//			profile.reset();
+//			break;
 		default:
 			break;
 		}

@@ -47,7 +47,6 @@ import com.gibbo.fallingrocks.entity.Player;
 import com.gibbo.fallingrocks.screens.DifficultySelectScreen;
 import com.gibbo.fallingrocks.screens.GameScreen;
 import com.gibbo.fallingrocks.screens.MainMenuScreen;
-import com.swarmconnect.SwarmLeaderboard;
 
 /**
  * Responsible for handling the stage and user input to navigate menus
@@ -207,7 +206,7 @@ public class UIManager extends Stage {
 		table.setSize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 		table.setFillParent(true);
 
-		table.add(heading).row();
+		table.add(heading).row().spaceTop(50);
 		table.add(play).row();
 		if (Gdx.app.getType() == ApplicationType.Android)
 			table.add(highscores).row();
@@ -504,29 +503,29 @@ public class UIManager extends Stage {
 		});
 
 		submit.addListener(new ClickListener() {
-			@Override
-			public void clicked(InputEvent event, float x, float y) {
-					switch (difficulty) {
-					case EASY:
-						SwarmLeaderboard.submitScore(13704, (int) score);
-						break;
-					case NORMAL:
-						SwarmLeaderboard.submitScore(13706, (int) score);
-						break;
-					case HARD:
-						SwarmLeaderboard.submitScore(13708, (int) score);
-						break;
-					case IMPOSSIBRU:
-						SwarmLeaderboard.submitScore(13710, (int) score);
-						break;
-					default:
-						break;
-				}
-					submit.setText("SUBMITTED");
-					submit.clearListeners();
-				
-				
-			}
+//			@Override
+//			public void clicked(InputEvent event, float x, float y) {
+//					switch (difficulty) {
+//					case EASY:
+//						SwarmLeaderboard.submitScore(13704, (int) score);
+//						break;
+//					case NORMAL:
+//						SwarmLeaderboard.submitScore(13706, (int) score);
+//						break;
+//					case HARD:
+//						SwarmLeaderboard.submitScore(13708, (int) score);
+//						break;
+//					case IMPOSSIBRU:
+//						SwarmLeaderboard.submitScore(13710, (int) score);
+//						break;
+//					default:
+//						break;
+//				}
+//					submit.setText("SUBMITTED");
+//					submit.clearListeners();
+//				
+//				
+//			}
 		});
 
 		menu.addListener(new ClickListener() {

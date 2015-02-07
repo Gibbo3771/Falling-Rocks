@@ -19,7 +19,6 @@ package com.gibbo.fallingrocks.engine;
 import box2dLight.RayHandler;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
@@ -65,7 +64,7 @@ public class WorldRenderer extends InputAdapter implements Disposable,
 	// Debugging
 	private Box2DDebugRenderer box2dDebug;
 	private ShapeRenderer debugRender;
-	private boolean debug = true;
+	private boolean debug;
 
 	// UI
 	private Sprite bg;
@@ -244,11 +243,6 @@ public class WorldRenderer extends InputAdapter implements Disposable,
 
 		UICam.update();
 
-		if (Gdx.input.isKeyPressed(Keys.SPACE)) {
-			debug = true;
-		} else {
-			debug = false;
-		}
 
 	}
 
